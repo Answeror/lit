@@ -129,7 +129,8 @@ class Lit(QWidget):
 
     def _global_key_down(self, e):
         CTRL = 162
-        if e.KeyID == CTRL:
+        CAP = 20
+        if e.KeyID in (CTRL, CAP):
             if self.hotkey_time.elapsed() < 500:
                 self.toggle_visibility()
             self.hotkey_time.restart()
@@ -145,11 +146,12 @@ class Lit(QWidget):
          return self.isVisible and not (self.windowState() & Qt.WindowMinimized)
 
     def hide_window(self):
+        self.inp.setText('')
         self.setWindowState(self.windowState() | Qt.WindowMinimized)
-        self.hide()
+        #self.hide()
 
     def show_window(self):
-        self.show()
+        #self.show()
         windows.goto(hwnd(self))
 
     def _install_plugins(self, plugins):
@@ -205,7 +207,6 @@ class ListView(QListView):
                     QItemSelectionModel.Select
                 )
 
-
 class Completer(QCompleter):
     """Custom completer for avaiable tasks."""
 
@@ -213,6 +214,7 @@ class Completer(QCompleter):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
         self.setPopup(ListView())
+        self.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         if not parent is None:
             self.setWidget(parent)
             #parent.setCompleter(self)

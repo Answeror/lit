@@ -6,6 +6,9 @@ from win32con import SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOW
 
 
 def goto(hwnd):
+    if not win32gui.IsWindow(hwnd):
+        return
+
     _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
 
     if showCmd == SW_SHOWMINIMIZED:
