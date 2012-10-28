@@ -38,5 +38,5 @@ class Go(LitPlugin):
     def _windowEnumTopLevel(hwnd, windowsList):
         """ Window Enum function for getTopLevelWindows """
         title = win32gui.GetWindowText(hwnd)
-        if win32gui.GetParent(hwnd) == 0 and title != '' and win32gui.IsWindowVisible(hwnd):
+        if win32gui.GetParent(hwnd) == 0 and title != '':
             windowsList.append((hwnd, title))
