@@ -1,0 +1,7 @@
+*.swp
+*.un~
+*.ipynb
+build/
+dist/
+__pycache__/
+MANIFEST
