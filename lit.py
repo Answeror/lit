@@ -51,14 +51,14 @@ def hwnd(win):
     return winid(win)
 
 
+def _no_impl(name):
+    raise RuntimeError('Method %s not implemented.' % name)
+
+
 class LitPlugin(object):
 
     def __init__(self):
         pass
-
-    @staticmethod
-    def _no_impl(name):
-        raise RuntimeError('Method %s not implemented.' % name)
 
     def lit(self, query):
         return []
@@ -103,8 +103,6 @@ class Lit(QWidget):
         lay.addWidget(self.inp)
         self.setLayout(lay)
         self._install_plugins(plugins)
-        self._setup_hotkeys()
-        self.hotkey_time = QTime()
         self.setWindowFlags(Qt.FramelessWindowHint)
 
     @property
@@ -122,20 +120,6 @@ class Lit(QWidget):
         self._move_to_center()
         self.super.resizeEvent(e)
 
-    def _setup_hotkeys(self):
-        hooks = pyHook.HookManager()
-        hooks.KeyDown = self._global_key_down
-        hooks.HookKeyboard()
-
-    def _global_key_down(self, e):
-        CTRL = 162
-        CAP = 20
-        if e.KeyID in (CTRL, CAP):
-            if self.hotkey_time.elapsed() < 500:
-                self.toggle_visibility()
-            self.hotkey_time.restart()
-        return True
-
     def toggle_visibility(self):
         if self.window_shown():
             self.hide_window()
@@ -143,7 +127,7 @@ class Lit(QWidget):
             self.show_window()
 
     def window_shown(self):
-         return self.isVisible and not (self.windowState() & Qt.WindowMinimized)
+        return self.isVisible() and not (self.windowState() & Qt.WindowMinimized)
 
     def hide_window(self):
         self.inp.setText('')
@@ -206,6 +190,7 @@ class ListView(QListView):
                     correct,
                     QItemSelectionModel.Select
                 )
+
 
 class Completer(QCompleter):
     """Custom completer for avaiable tasks."""
@@ -271,6 +256,25 @@ class Input(QLineEdit):
         super(Input, self).keyPressEvent(e)
 
 
+class HotkeyScope(object):
+
+    def __init__(self, down=None, up=None):
+        self.down = down
+        self.up = up
+
+    def __enter__(self):
+        self.hooks = pyHook.HookManager()
+        if not self.down is None:
+            self.hooks.KeyDown = self.down
+        if not self.up is None:
+            self.hooks.KeyUp = self.up
+        self.hooks.HookKeyboard()
+        return self
+
+    def __exit__(self, *args):
+        self.hooks.UnhookKeyboard()
+
+
 def main(argv):
     app = QApplication(argv)
     STYLESHEET = 'style.css'
@@ -281,9 +285,24 @@ def main(argv):
     with open(STYLESHEET, 'r') as f:
         app.setStyleSheet(f.read())
     from go import Go
+
     lit = Lit([Go()])
-    lit.show()
-    return app.exec_()
+    hotkey_time = QTime()
+    # double strike interval
+    interval = 500
+
+    def key_up(e):
+        CTRL = 162
+        CAP = 20
+        if e.KeyID in (CTRL, CAP):
+            if hotkey_time.elapsed() < interval:
+                lit.toggle_visibility()
+            hotkey_time.restart()
+        return True
+
+    with HotkeyScope(up=key_up):
+        lit.show()
+        return app.exec_()
 
 
 if __name__ == '__main__':
