@@ -12,7 +12,8 @@ from PySide.QtGui import (
     QKeyEvent,
     QAbstractItemView,
     QListView,
-    QItemSelectionModel
+    QItemSelectionModel,
+    QStyledItemDelegate
 )
 from PySide.QtCore import (
     Qt,
@@ -21,7 +22,8 @@ from PySide.QtCore import (
     QModelIndex,
     QAbstractItemModel,
     QTime,
-    QTimer
+    QTimer,
+    QRect
 )
 import stream as sm
 import re
@@ -184,7 +186,13 @@ class CenterListView(QListView):
     def __init__(self):
         self.super.__init__()
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.setSpacing(5)
+        #self.setSpacing(2)
+        #self.setItemDelegate(QStyledItemDelegate())
+
+    #def sizeHint(self):
+        #s = self.super.sizeHint()
+        #s.height = 600
+        #return s
 
     @property
     def super(self):
@@ -202,6 +210,7 @@ class Completer(QCompleter):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
         self.setPopup(CenterListView())
+        self.setMaxVisibleItems(12)
 
     @property
     def popuped(self):
