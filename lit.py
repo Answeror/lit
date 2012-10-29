@@ -287,20 +287,18 @@ def main(argv):
     from go import Go
 
     lit = Lit([Go()])
-    hotkey_time = QTime()
-    # double strike interval
-    interval = 500
 
-    def key_up(e):
+    def key_down(e):
         CTRL = 162
         CAP = 20
-        if e.KeyID in (CTRL, CAP):
-            if hotkey_time.elapsed() < interval:
-                lit.toggle_visibility()
-            hotkey_time.restart()
+        TAB = 9
+        # alt + tab
+        if e.Alt and e.KeyID == TAB:
+            lit.toggle_visibility()
+            return False
         return True
 
-    with HotkeyScope(up=key_up):
+    with HotkeyScope(down=key_down):
         lit.show()
         return app.exec_()
 
