@@ -179,11 +179,12 @@ class Lit(QWidget):
 
 
 class CenterListView(QListView):
-    """Provide circular selection."""
+    """Always scroll to center."""
 
     def __init__(self):
         self.super.__init__()
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.setSpacing(5)
 
     @property
     def super(self):
