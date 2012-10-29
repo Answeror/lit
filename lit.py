@@ -98,7 +98,8 @@ class Lit(QWidget):
         lay = QVBoxLayout()
         self.inp = Input(self.act, self)
         self.inp.textChanged.connect(self.query)
-        self.completer = Completer(self.inp)
+        self.completer = Completer()
+        self.inp.setCompleter(self.completer)
         self.completer.activated.connect(self.select)
         lay.addWidget(self.inp)
         self.setLayout(lay)
@@ -145,7 +146,9 @@ class Lit(QWidget):
     def query(self, text):
         cmd, arg = parse_query(text)
         self.cmd = self.default_plugin.name if cmd is None else cmd
-        if not arg is None:
+        if arg is None:
+            self.popup([])
+        else:
             if cmd is None:
                 if not self.default_plugin is None:
                     self.popup(self.default_plugin.lit(arg))
@@ -169,27 +172,72 @@ class Lit(QWidget):
     def popup(self, items):
         self.completer.update(items)
 
+    def showEvent(self, e):
+        if not self.completer.popuped:
+            QTimer.singleShot(0, lambda: self.query(self.inp.text()))
+        self.super.showEvent(e)
 
-class ListView(QListView):
 
-    def __init__(self):
-        super(ListView, self).__init__()
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+#class CircularListView(QListView):
+    #"""Provide circular selection."""
 
-    @Slot(QModelIndex, QModelIndex)
-    def currentChanged(self, current, previous):
-        if not current.isValid():
-            smodel = self.selectionModel()
-            imodel = smodel.model()
-            if imodel.rowCount() > 0:
-                if previous.row() == 0:
-                    correct = imodel.index(imodel.rowCount() - 1, 0)
-                else:
-                    correct = imodel.index(0, 0)
-                smodel.setCurrentIndex(
-                    correct,
-                    QItemSelectionModel.Select
-                )
+    #def __init__(self):
+        #self.super.__init__()
+        #self.setSelectionMode(QAbstractItemView.SingleSelection)
+
+    #@property
+    #def super(self):
+        #return super(CircularListView, self)
+
+    #@property
+    #def atbottom(self):
+        #return self.currentIndex().row() + 1 == self.model().rowCount()
+
+    #@property
+    #def attop(self):
+        #return self.currentIndex().row() == 0
+
+    #def event(self, e):
+        #print(e.type())
+        #if e.type() == QEvent.KeyPress:
+            #print(self.atbottom, e.key())
+            #if self.attop and e.key() == Qt.Key_Up:
+                #QApplication.postEvent(self, QKeyEvent(
+                    #QEvent.KeyPress,
+                    #Qt.Key_End,
+                    #e.modifiers()
+                #))
+                #return True
+            #elif self.atbottom and e.key() == Qt.Key_Down:
+                #QApplication.postEvent(self, QKeyEvent(
+                    #QEvent.KeyPress,
+                    #Qt.Key_Home,
+                    #e.modifiers()
+                #))
+                #return True
+        #return self.super.event(e)
+
+    #def moveCursor(self, action, modifiers):
+        #if self.attop and action == self.MoveUp:
+            #action = self.MoveEnd
+        #elif self.atbottom and action == self.MoveDown:
+            #action = self.MoveHome
+        #return self.super.moveCursor(action, modifiers)
+
+    #@Slot(QModelIndex, QModelIndex)
+    #def currentChanged(self, current, previous):
+        #if not current.isValid():
+            #smodel = self.selectionModel()
+            #imodel = smodel.model()
+            #if imodel.rowCount() > 0:
+                #if previous.row() == 0:
+                    #correct = imodel.index(imodel.rowCount() - 1, 0)
+                #else:
+                    #correct = imodel.index(0, 0)
+                #smodel.setCurrentIndex(
+                    #correct,
+                    #QItemSelectionModel.Select
+                #)
 
 
 class Completer(QCompleter):
@@ -198,11 +246,10 @@ class Completer(QCompleter):
     def __init__(self, parent=None):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
-        self.setPopup(ListView())
-        self.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
-        if not parent is None:
-            self.setWidget(parent)
-            #parent.setCompleter(self)
+
+    @property
+    def popuped(self):
+        return self.popup().isVisible()
 
     @property
     def super(self):
@@ -214,20 +261,34 @@ class Completer(QCompleter):
         self.setModel(model)
         self.setCompletionPrefix('')
         self.complete()
+        first_index = self.popup().model().index(0, 0)
+        self.popup().selectionModel().setCurrentIndex(
+            first_index,
+            QItemSelectionModel.Select | QItemSelectionModel.Rows
+        )
+        self.popup().scrollTo(first_index, QAbstractItemView.PositionAtCenter)
+
+    @property
+    def atbottom(self):
+        p = self.popup()
+        return p.currentIndex().row() + 1 == p.model().rowCount()
+
+    @property
+    def attop(self):
+        return self.popup().currentIndex().row() == 0
 
     def eventFilter(self, o, e):
-        if e.type() == QEvent.KeyPress and self.popup().isVisible():
-            if e.key() == Qt.Key_Tab:
+        if e.type() == QEvent.KeyPress:
+            if e.key() == Qt.Key_Tab or e.key() == Qt.Key_J and e.modifiers() & Qt.ControlModifier:
                 ne = QKeyEvent(
                     QEvent.KeyPress,
                     Qt.Key_Down,
                     e.modifiers(),
                     ''
                 )
-                if not self.super.eventFilter(o, ne):
-                    o.event(ne)
+                QApplication.sendEvent(o, ne)
                 return True
-            elif e.key() == Qt.Key_Backtab:
+            elif e.key() == Qt.Key_Tab or e.key() == Qt.Key_K and e.modifiers() & Qt.ControlModifier:
                 ne = QKeyEvent(
                     QEvent.KeyPress,
                     Qt.Key_Up,
@@ -236,8 +297,23 @@ class Completer(QCompleter):
                     e.isAutoRepeat(),
                     e.count()
                 )
-                if not self.super.eventFilter(o, ne):
-                    o.event(ne)
+                QApplication.sendEvent(o, ne)
+                return True
+            elif e.key() == Qt.Key_Up and self.attop:
+                ne = QKeyEvent(
+                    QEvent.KeyPress,
+                    Qt.Key_End,
+                    Qt.ControlModifier
+                )
+                QApplication.sendEvent(o, ne)
+                return True
+            elif e.key() == Qt.Key_Down and self.atbottom:
+                ne = QKeyEvent(
+                    QEvent.KeyPress,
+                    Qt.Key_Home,
+                    Qt.ControlModifier
+                )
+                QApplication.sendEvent(o, ne)
                 return True
         return self.super.eventFilter(o, e)
 
@@ -254,6 +330,9 @@ class Input(QLineEdit):
             Qt.Key_Return: self.enter
         }.get(e.key(), lambda: None)()
         super(Input, self).keyPressEvent(e)
+
+    def setCompleter(self, completer):
+        completer.setWidget(self)
 
 
 class HotkeyScope(object):
