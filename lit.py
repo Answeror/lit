@@ -178,66 +178,20 @@ class Lit(QWidget):
         self.super.showEvent(e)
 
 
-#class CircularListView(QListView):
-    #"""Provide circular selection."""
+class CenterListView(QListView):
+    """Provide circular selection."""
 
-    #def __init__(self):
-        #self.super.__init__()
-        #self.setSelectionMode(QAbstractItemView.SingleSelection)
+    def __init__(self):
+        self.super.__init__()
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-    #@property
-    #def super(self):
-        #return super(CircularListView, self)
+    @property
+    def super(self):
+        return super(CenterListView, self)
 
-    #@property
-    #def atbottom(self):
-        #return self.currentIndex().row() + 1 == self.model().rowCount()
-
-    #@property
-    #def attop(self):
-        #return self.currentIndex().row() == 0
-
-    #def event(self, e):
-        #print(e.type())
-        #if e.type() == QEvent.KeyPress:
-            #print(self.atbottom, e.key())
-            #if self.attop and e.key() == Qt.Key_Up:
-                #QApplication.postEvent(self, QKeyEvent(
-                    #QEvent.KeyPress,
-                    #Qt.Key_End,
-                    #e.modifiers()
-                #))
-                #return True
-            #elif self.atbottom and e.key() == Qt.Key_Down:
-                #QApplication.postEvent(self, QKeyEvent(
-                    #QEvent.KeyPress,
-                    #Qt.Key_Home,
-                    #e.modifiers()
-                #))
-                #return True
-        #return self.super.event(e)
-
-    #def moveCursor(self, action, modifiers):
-        #if self.attop and action == self.MoveUp:
-            #action = self.MoveEnd
-        #elif self.atbottom and action == self.MoveDown:
-            #action = self.MoveHome
-        #return self.super.moveCursor(action, modifiers)
-
-    #@Slot(QModelIndex, QModelIndex)
-    #def currentChanged(self, current, previous):
-        #if not current.isValid():
-            #smodel = self.selectionModel()
-            #imodel = smodel.model()
-            #if imodel.rowCount() > 0:
-                #if previous.row() == 0:
-                    #correct = imodel.index(imodel.rowCount() - 1, 0)
-                #else:
-                    #correct = imodel.index(0, 0)
-                #smodel.setCurrentIndex(
-                    #correct,
-                    #QItemSelectionModel.Select
-                #)
+    def scrollTo(self, index, _):
+        """Always scroll to center."""
+        self.super.scrollTo(index, QAbstractItemView.PositionAtCenter)
 
 
 class Completer(QCompleter):
@@ -246,6 +200,7 @@ class Completer(QCompleter):
     def __init__(self, parent=None):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
+        self.setPopup(CenterListView())
 
     @property
     def popuped(self):
