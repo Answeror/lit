@@ -134,6 +134,7 @@ class Lit(QWidget):
 
     def hide_window(self):
         self.inp.setText('')
+        self.completer.popup().hide()
         self.setWindowState(self.windowState() | Qt.WindowMinimized)
         #self.hide()
 
