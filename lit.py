@@ -338,8 +338,16 @@ def main(argv):
         CAP = 20
         TAB = 9
         # alt + tab
+        print(e.Alt, e.KeyID)
         if e.Alt and e.KeyID == TAB:
             lit.toggle_visibility()
+            return False
+        return True
+
+    def key_up(e):
+        TAB = 9
+        # alt + tab
+        if e.Alt and e.KeyID == TAB:
             return False
         return True
 
