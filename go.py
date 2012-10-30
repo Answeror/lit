@@ -7,12 +7,13 @@ import win32gui
 from win32con import SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOW
 import windows
 from datetime import datetime
+from utils import damerau_levenshtein_distance
 
 
 class Go(LitPlugin):
 
     def __init__(self):
-        self.select_count = dict()
+        self.usetime = dict()
 
     @property
     def name(self):
@@ -20,23 +21,36 @@ class Go(LitPlugin):
 
     def lit(self, query):
         self.windows = self._getTopLevelWindows()
-        words = [re.escape(w) for w in query]
-        query = '.*'.join(words)
-        pattern = re.compile(query, flags=re.IGNORECASE)
-        windownames = [w[1] for w in self.windows if not pattern.search(w[1]) is None]
-        for name in windownames:
-            if not name in self.select_count:
-                self.select_count[name] = datetime.now()
-        return sorted(windownames, key=lambda name: self.select_count[name], reverse=True)
+        names = [w[1] for w in self.windows]
+
+        # update use time
+        for name in names:
+            if not name in self.usetime:
+                self.usetime[name] = datetime.now()
+
+        # sort by lash use
+        if not query:
+            return sorted(names, key=lambda name: self.usetime[name], reverse=True)
+
+        query = query.lower()
+        f = lambda name: damerau_levenshtein_distance(
+            query,
+            name.lower(),
+            insertion_cost=1,
+            deletion_cost=100,
+            substitution_cost=100,
+            transposition_cost=10
+        )
+        return sorted(names, key=f)
         # Icon for the window can be extracted with WM_GETICON, but it's too much for now
 
     def select(self, arg):
         for window in self.windows:
             if arg == window[1]:
-                self.select_count[arg] = datetime.now()
+                self.usetime[arg] = datetime.now()
                 windows.goto(window[0])
                 return
-        del self.select_count[arg]
+        del self.usetime[arg]
 
     def _getTopLevelWindows(self):
         """ Returns the top level windows in a list of tuples defined (HWND, title) """

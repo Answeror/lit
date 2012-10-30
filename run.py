@@ -5,6 +5,7 @@ import os
 import re
 import subprocess as sp
 from lit import LitPlugin
+from utils import damerau_levenshtein_distance
 
 
 class Run(LitPlugin):
@@ -30,10 +31,17 @@ class Run(LitPlugin):
         return 'r'
 
     def lit(self, query):
-        words = [re.escape(w) for w in query]
-        query = '.*'.join(words)
-        p = re.compile(query, flags=re.IGNORECASE)
-        return [name for name, _ in self.d.items() if not p.search(name) is None]
+        query = query.lower()
+        f = lambda name: damerau_levenshtein_distance(
+            query,
+            name.lower(),
+            insertion_cost=1,
+            deletion_cost=100,
+            substitution_cost=100,
+            transposition_cost=10
+        )
+        names = self.d.keys()
+        return sorted(names, key=f)
 
     def select(self, name):
         if name in self.d:
