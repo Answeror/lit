@@ -23,9 +23,14 @@ from PySide.QtCore import (
     QAbstractItemModel,
     QTime,
     QTimer,
-    QRect
+    QRect,
+    QThread,
+    Signal,
+    QMutex,
+    QMutexLocker
 )
 import stream as sm
+import os
 import re
 import pyHook
 import win32gui
@@ -111,6 +116,9 @@ class Lit(QWidget):
         self._install_plugins(plugins)
         self.setWindowFlags(Qt.FramelessWindowHint)
 
+        self.hot = pyhk.pyhk()
+        self.hotid = self.hot.addHotkey(['Alt', 'Tab'], self.toggle_visibility)
+
     @property
     def super(self):
         return super(Lit, self)
@@ -170,6 +178,10 @@ class Lit(QWidget):
 
     def act(self):
         if self.cmd == 'exit':
+            with open(os.path.expanduser('~/.lit.log'), 'w', encoding='utf-8') as f:
+                f.write('removing\n')
+                self.hot.removeHotkey(self.hotid)
+                f.write('removed\n')
             QTimer.singleShot(0, QApplication.quit)
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
@@ -298,25 +310,6 @@ class Input(QLineEdit):
         completer.setWidget(self)
 
 
-class HotkeyScope(object):
-
-    def __init__(self, down=None, up=None):
-        self.down = down
-        self.up = up
-
-    def __enter__(self):
-        self.hooks = pyHook.HookManager()
-        if not self.down is None:
-            self.hooks.KeyDown = self.down
-        if not self.up is None:
-            self.hooks.KeyUp = self.up
-        self.hooks.HookKeyboard()
-        return self
-
-    def __exit__(self, *args):
-        self.hooks.UnhookKeyboard()
-
-
 def main(argv):
     app = QApplication(argv)
     STYLESHEET = 'style.css'
@@ -330,29 +323,6 @@ def main(argv):
     from run import Run
 
     lit = Lit([Go(), Run()])
-
-    def key_down(e):
-        CTRL = 162
-        CAP = 20
-        TAB = 9
-        # alt + tab
-        print(e.Alt, e.KeyID)
-        if e.Alt and e.KeyID == TAB:
-            lit.toggle_visibility()
-            return False
-        return True
-
-    def key_up(e):
-        TAB = 9
-        # alt + tab
-        if e.Alt and e.KeyID == TAB:
-            return False
-        return True
-
-    #with HotkeyScope(down=key_down):
-
-    hot = pyhk.pyhk()
-    hot.addHotkey(['Alt', 'Tab'], lit.toggle_visibility)
     lit.show()
     return app.exec_()
 

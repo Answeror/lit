@@ -269,15 +269,17 @@ class pyhk:
         else:
             eventID = self.mouseDown_eventMessage2MID[event.Message]
 
+        run = False
         #make sure key only gets presse once
         if not(eventID in self.KeyDownID):
-
             self.KeyDownID.append(eventID)
+            run = True
 
         #Add user hotkeys and functions
         for hk, fun in self.UserHKF:
             if self.isHotkey(hk):
-                fun()
+                if run:
+                    fun()
                 return False
 
         return True
