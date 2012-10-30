@@ -16,7 +16,7 @@ class Go(LitPlugin):
 
     @property
     def name(self):
-        return 'go'
+        return 'g'
 
     def lit(self, query):
         self.windows = self._getTopLevelWindows()

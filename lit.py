@@ -35,10 +35,12 @@ from win32con import SW_RESTORE
 import pyhk
 
 
-_QWidget_winId = QWidget.winId
+# these config should be saved
+MAX_LIST_LENGTH = 12
 
 
 def winid(self):
+    _QWidget_winId = QWidget.winId
     if sys.version_info[0] == 2:
         ctypes.pythonapi.PyCObject_AsVoidPtr.restype = ctypes.c_void_p
         ctypes.pythonapi.PyCObject_AsVoidPtr.argtypes = [ctypes.py_object]
@@ -149,6 +151,7 @@ class Lit(QWidget):
 
     def query(self, text):
         cmd, arg = parse_query(text)
+
         self.cmd = self.default_plugin.name if cmd is None else cmd
         if arg is None:
             self.popup([])
@@ -161,20 +164,18 @@ class Lit(QWidget):
                     self.popup(self.plugins[cmd].lit(arg))
 
     def select(self, text):
+        cmd = self.cmd
         self.hide_window()
-        self.plugins[self.cmd].select(text)
+        self.plugins[cmd].select(text)
 
     def act(self):
         if self.cmd == 'exit':
-            QApplication.quit()
+            QTimer.singleShot(0, QApplication.quit)
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
-    #def minimize(self):
-        #self.setWindowState(Qt.WindowMinimized)
-
     def popup(self, items):
-        self.completer.update(items)
+        self.completer.update(items[:MAX_LIST_LENGTH])
 
     def showEvent(self, e):
         if not self.completer.popuped:
@@ -190,11 +191,6 @@ class CenterListView(QListView):
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         #self.setSpacing(2)
         #self.setItemDelegate(QStyledItemDelegate())
-
-    #def sizeHint(self):
-        #s = self.super.sizeHint()
-        #s.height = 600
-        #return s
 
     @property
     def super(self):
@@ -331,8 +327,9 @@ def main(argv):
     with open(STYLESHEET, 'r') as f:
         app.setStyleSheet(f.read())
     from go import Go
+    from run import Run
 
-    lit = Lit([Go()])
+    lit = Lit([Go(), Run()])
 
     def key_down(e):
         CTRL = 162
