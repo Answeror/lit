@@ -32,6 +32,7 @@ import win32gui
 import ctypes
 import windows
 from win32con import SW_RESTORE
+import pyhk
 
 
 _QWidget_winId = QWidget.winId
@@ -351,9 +352,12 @@ def main(argv):
             return False
         return True
 
-    with HotkeyScope(down=key_down):
-        lit.show()
-        return app.exec_()
+    #with HotkeyScope(down=key_down):
+
+    hot = pyhk.pyhk()
+    hot.addHotkey(['Alt', 'Tab'], lit.toggle_visibility)
+    lit.show()
+    return app.exec_()
 
 
 if __name__ == '__main__':
