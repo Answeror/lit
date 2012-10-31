@@ -108,8 +108,8 @@ class Lit(QWidget):
         lay = QVBoxLayout()
         self.inp = Input(self.act, self)
         self.inp.textChanged.connect(self.query)
-        self.completer = Completer()
-        self.inp.setCompleter(self.completer)
+        self.completer = Completer(self.inp)
+        #self.inp.setCompleter(self.completer)
         self.completer.activated.connect(self.select)
         lay.addWidget(self.inp)
         self.setLayout(lay)
@@ -182,7 +182,9 @@ class Lit(QWidget):
                 f.write('removing\n')
                 self.hot.removeHotkey(self.hotid)
                 f.write('removed\n')
-            QTimer.singleShot(0, QApplication.quit)
+                #QTimer.singleShot(0, QApplication.quit)
+                QApplication.quit()
+                f.write('quit\n')
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
@@ -198,8 +200,8 @@ class Lit(QWidget):
 class CenterListView(QListView):
     """Always scroll to center."""
 
-    def __init__(self):
-        self.super.__init__()
+    def __init__(self, parent=None):
+        self.super.__init__(parent=parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         #self.setSpacing(2)
         #self.setItemDelegate(QStyledItemDelegate())
@@ -221,6 +223,8 @@ class Completer(QCompleter):
         self.windows = []
         self.setPopup(CenterListView())
         self.setMaxVisibleItems(12)
+        if not parent is None:
+            self.setWidget(parent)
 
     @property
     def popuped(self):
@@ -306,8 +310,8 @@ class Input(QLineEdit):
         }.get(e.key(), lambda: None)()
         super(Input, self).keyPressEvent(e)
 
-    def setCompleter(self, completer):
-        completer.setWidget(self)
+    #def setCompleter(self, completer):
+        #completer.setWidget(self)
 
 
 def main(argv):
