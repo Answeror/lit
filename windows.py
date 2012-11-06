@@ -52,14 +52,24 @@ def SetForegroundWindowInternal(hWnd):
 
 
 def goto(hwnd):
+    if not win32gui.IsWindow(hwnd):
+        return
+
+    _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
+
+    if showCmd == SW_SHOWMINIMIZED:
+        win32gui.ShowWindow(hwnd, SW_RESTORE)
+    else:
+        win32gui.ShowWindow(hwnd, SW_SHOW)
+
     fgwin = win32gui.GetForegroundWindow()
     fg = win32process.GetWindowThreadProcessId(fgwin)[0]
     current = win32api.GetCurrentThreadId()
     if current != fg:
         win32process.AttachThreadInput(fg, current, True)
-        #win32gui.BringWindowToTop(hwnd)
+        win32gui.BringWindowToTop(hwnd)
         win32gui.SetForegroundWindow(hwnd)
-        #win32gui.SetActiveWindow(hwnd)
+        win32gui.SetActiveWindow(hwnd)
         #win32gui.SetFocus(hwnd)
         win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
     else:

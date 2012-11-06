@@ -114,7 +114,7 @@ class EventListener(Process):
         self.sema = sema
 
     def fire(self):
-        print('release')
+        #print('release')
         self.sema.release()
 
     def run(self):
@@ -194,7 +194,7 @@ class Lit(QWidget):
         self.super.resizeEvent(e)
 
     def toggle_visibility(self):
-        print(self.window_shown())
+        #print(self.window_shown())
         if self.window_shown():
             self.hide_window()
         else:
