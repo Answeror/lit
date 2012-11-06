@@ -268,7 +268,7 @@ class pyhk:
 
     def OnKeyDown(self,event):
 
-        print('down')
+        #print('down')
 
         if not "mouse" in event.MessageName:
             #check for merged keys first

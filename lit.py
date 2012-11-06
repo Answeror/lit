@@ -114,15 +114,15 @@ class EventListener(Process):
         self.sema = sema
 
     def fire(self):
-        print('releasing')
+        #print('releasing')
         self.sema.release()
-        print('released')
+        #print('released')
 
     def run(self):
         self.hot = pyhk.pyhk()
         # don't pass self.sema.relaese here
         # don't know why
-        self.hot.addHotkey(['Alt', 'Tab'], self.fire)
+        self.hot.addHotkey(['Alt', 'F'], self.fire)
         self.hot.start()
 
 
@@ -138,11 +138,11 @@ class EventProcessor(QThread):
 
     def run(self):
         while self.running:
-            print('acquiring')
+            #print('acquiring')
             self.sema.acquire()
-            print('acquired')
+            #print('acquired')
             if self.running:
-                print('emiting')
+                #print('emiting')
                 self.fire.emit()
 
 
@@ -198,7 +198,7 @@ class Lit(QWidget):
         self.super.resizeEvent(e)
 
     def toggle_visibility(self):
-        print("visible: {}".format(self.window_shown()))
+        #print("visible: {}".format(self.window_shown()))
         if self.window_shown():
             self.hide_window()
         else:
