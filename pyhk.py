@@ -87,11 +87,16 @@ class pyhk:
 
         # set the hook
         self.hm.HookKeyboard()
-        self.hm.HookMouse()
+        # don't hook mouse here, or alt-tab will not work properly when mouse down
+        #self.hm.HookMouse()
 
         #set Ending hotkey
-        self.EndHotkey = ['Ctrl','Shift','Q']
-        self.setEndHotkey(self.EndHotkey)
+        #self.EndHotkey = ['Ctrl','Shift','Q']
+        #self.setEndHotkey(self.EndHotkey)
+
+    def unhook(self):
+        self.hm.UnhookKeyboard()
+        #self.hm.UnhookMouse()
 
     def start(self):
         """Start pyhk to check for hotkeys"""

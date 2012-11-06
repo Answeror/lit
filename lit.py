@@ -13,7 +13,8 @@ from PySide.QtGui import (
     QAbstractItemView,
     QListView,
     QItemSelectionModel,
-    QStyledItemDelegate
+    QStyledItemDelegate,
+    qApp
 )
 from PySide.QtCore import (
     Qt,
@@ -33,11 +34,15 @@ import stream as sm
 import os
 import re
 import pyHook
+import pythoncom
 import win32gui
 import ctypes
 import windows
 from win32con import SW_RESTORE
 import pyhk
+import logging
+from multiprocessing import Process, Semaphore, freeze_support
+import win32con
 
 
 # these config should be saved
@@ -101,6 +106,42 @@ def parse_query(text):
     return m.group(1), m.group(2)[1:] if not m.group(2) is None else None
 
 
+class EventListener(Process):
+    """Catchs events using pyHook."""
+
+    def __init__(self, sema):
+        super(EventListener, self).__init__()
+        self.sema = sema
+
+    def fire(self):
+        print('release')
+        self.sema.release()
+
+    def run(self):
+        self.hot = pyhk.pyhk()
+        # don't pass self.sema.relaese here
+        # don't know why
+        self.hot.addHotkey(['Alt', 'Tab'], self.fire)
+        self.hot.start()
+
+
+class EventProcessor(QThread):
+    """Gets events from the EventListener."""
+
+    fire = Signal()
+
+    def __init__(self, sema):
+        super(EventProcessor, self).__init__()
+        self.sema = sema
+        self.running = True
+
+    def run(self):
+        while self.running:
+            self.sema.acquire()
+            if self.running:
+                self.fire.emit()
+
+
 class Lit(QWidget):
 
     def __init__(self, plugins=[]):
@@ -114,10 +155,28 @@ class Lit(QWidget):
         lay.addWidget(self.inp)
         self.setLayout(lay)
         self._install_plugins(plugins)
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+        self.setWindowTitle('lit')
 
-        self.hot = pyhk.pyhk()
-        self.hotid = self.hot.addHotkey(['Alt', 'Tab'], self.toggle_visibility)
+        sema = Semaphore(0)
+        self.sema = sema
+        self.event_listener = EventListener(sema)
+        self.event_listener.start()
+        self.event_processor = EventProcessor(sema)
+        self.event_processor.fire.connect(self.toggle_visibility)
+        self.event_processor.start()
+
+        #qApp.installEventFilter(self)
+
+        #ctypes.windll.user32.SetWinEventHook(
+            #win32con.EVENT_SYSTEM_FOREGROUND,
+            #win32con.EVENT_SYSTEM_FOREGROUND ,
+            #0,
+            #self.WinEventProcCallback, 0, 0,
+            #win32con.WINEVENT_OUTOFCONTEXT | win32con.WINEVENT_SKIPOWNPROCESS);
+
+    #def WinEventProcCallback(self, hWinEventHook, dwEvent, hwnd, idObject, idChild, dwEventThread, dwmsEventTime):
+        #print('aaa')
 
     @property
     def super(self):
@@ -135,23 +194,25 @@ class Lit(QWidget):
         self.super.resizeEvent(e)
 
     def toggle_visibility(self):
+        print(self.window_shown())
         if self.window_shown():
             self.hide_window()
         else:
             self.show_window()
 
     def window_shown(self):
-        return self.isVisible() and not (self.windowState() & Qt.WindowMinimized)
+        #return self.isVisible() and not (self.windowState() & Qt.WindowMinimized)
+        return self.isVisible()
 
     def hide_window(self):
-        self.inp.setText('')
-        self.completer.popup().hide()
-        self.setWindowState(self.windowState() | Qt.WindowMinimized)
-        #self.hide()
+        #self.inp.setText('')
+        #self.completer.popup().hide()
+        #self.setWindowState(self.windowState() | Qt.WindowMinimized)
+        self.hide()
 
     def show_window(self):
-        #self.show()
-        windows.goto(hwnd(self))
+        self.show()
+        #QTimer.singleShot(100, lambda: windows.goto(hwnd(self)))
 
     def _install_plugins(self, plugins):
         self.plugins = plugins >> sm.map(lambda p: (p.name, p)) >> dict
@@ -173,18 +234,17 @@ class Lit(QWidget):
 
     def select(self, text):
         cmd = self.cmd
-        self.hide_window()
+        #self.hide_window()
         self.plugins[cmd].select(text)
 
     def act(self):
         if self.cmd == 'exit':
-            with open(os.path.expanduser('~/.lit.log'), 'w', encoding='utf-8') as f:
-                f.write('removing\n')
-                self.hot.removeHotkey(self.hotid)
-                f.write('removed\n')
-                #QTimer.singleShot(0, QApplication.quit)
-                QApplication.quit()
-                f.write('quit\n')
+            self.event_listener.terminate()
+            if self.event_processor.isRunning():
+                self.event_processor.running = False
+                self.sema.release()
+                self.event_processor.wait()
+            QApplication.quit()
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
@@ -192,9 +252,31 @@ class Lit(QWidget):
         self.completer.update(items[:MAX_LIST_LENGTH])
 
     def showEvent(self, e):
+        QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
+        self.inp.setFocus()
         if not self.completer.popuped:
             QTimer.singleShot(0, lambda: self.query(self.inp.text()))
         self.super.showEvent(e)
+
+    def hideEvent(self, e):
+        state = self.inp.blockSignals(True)
+        try:
+            self.inp.setText('')
+        finally:
+            self.inp.blockSignals(state)
+        self.completer.popup().hide()
+        self.super.hideEvent(e)
+
+    # cannot write here, don't know why
+    #def closeEvent(self, e):
+        #print('terming')
+        #self.event_listener.terminate()
+        #print('termed')
+        #if self.event_processor.isRunning():
+            #self.event_processor.running = False
+            #self.sema.release()
+            #self.event_processor.wait()
+            #print('waited')
 
 
 class CenterListView(QListView):
@@ -303,6 +385,10 @@ class Input(QLineEdit):
         super(Input, self).__init__(parent)
         self.enter = enter
 
+    @property
+    def super(self):
+        return super(Input, self)
+
     def keyPressEvent(self, e):
         {
             Qt.Key_Escape: lambda: self.setText(''),
@@ -315,20 +401,31 @@ class Input(QLineEdit):
 
 
 def main(argv):
-    app = QApplication(argv)
-    STYLESHEET = 'style.css'
-    app.setOrganizationName('helanic')
-    app.setOrganizationDomain('answeror.com')
-    app.setApplicationName('lit')
-    # style
-    with open(STYLESHEET, 'r') as f:
-        app.setStyleSheet(f.read())
-    from go import Go
-    from run import Run
+    logging.basicConfig(
+        filename=os.path.expanduser('~/.lig.log'),
+        filemode='w',
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        level=logging.DEBUG
+    )
+    try:
+        freeze_support()
 
-    lit = Lit([Go(), Run()])
-    lit.show()
-    return app.exec_()
+        app = QApplication(argv)
+        STYLESHEET = 'style.css'
+        app.setOrganizationName('helanic')
+        app.setOrganizationDomain('answeror.com')
+        app.setApplicationName('lit')
+        # style
+        with open(STYLESHEET, 'r') as f:
+            app.setStyleSheet(f.read())
+        from go import Go
+        from run import Run
+
+        lit = Lit([Go(), Run()])
+        lit.show()
+        return app.exec_()
+    except Exception as e:
+        logging.error(e)
 
 
 if __name__ == '__main__':
