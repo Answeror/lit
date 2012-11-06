@@ -114,8 +114,9 @@ class EventListener(Process):
         self.sema = sema
 
     def fire(self):
-        #print('release')
+        print('releasing')
         self.sema.release()
+        print('released')
 
     def run(self):
         self.hot = pyhk.pyhk()
@@ -137,8 +138,11 @@ class EventProcessor(QThread):
 
     def run(self):
         while self.running:
+            print('acquiring')
             self.sema.acquire()
+            print('acquired')
             if self.running:
+                print('emiting')
                 self.fire.emit()
 
 
@@ -194,7 +198,7 @@ class Lit(QWidget):
         self.super.resizeEvent(e)
 
     def toggle_visibility(self):
-        #print(self.window_shown())
+        print("visible: {}".format(self.window_shown()))
         if self.window_shown():
             self.hide_window()
         else:
