@@ -6,6 +6,7 @@ import re
 import subprocess as sp
 from lit import LitPlugin
 from utils import damerau_levenshtein_distance
+import win32api
 
 
 class Run(LitPlugin):
@@ -46,4 +47,5 @@ class Run(LitPlugin):
     def select(self, name):
         if name in self.d:
             # use shell=True to make lnk valid
-            sp.call(self.d[name], shell=True)
+            #sp.call(self.d[name], shell=True)
+            win32api.ShellExecute(0, 'open', self.d[name], '', '', 1)

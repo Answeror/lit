@@ -12,36 +12,22 @@ from PySide.QtGui import (
     QKeyEvent,
     QAbstractItemView,
     QListView,
-    QItemSelectionModel,
-    QStyledItemDelegate,
-    qApp
+    QItemSelectionModel
 )
 from PySide.QtCore import (
     Qt,
     QEvent,
-    Slot,
-    QModelIndex,
-    QAbstractItemModel,
-    QTime,
     QTimer,
-    QRect,
     QThread,
-    Signal,
-    QMutex,
-    QMutexLocker
+    Signal
 )
 import stream as sm
 import os
 import re
-import pyHook
-import pythoncom
 import win32gui
 import ctypes
 import windows
-from win32con import SW_RESTORE
-import pyhk
 import logging
-from multiprocessing import Process, Semaphore, freeze_support
 import win32con
 
 
@@ -106,46 +92,6 @@ def parse_query(text):
     return m.group(1), m.group(2)[1:] if not m.group(2) is None else None
 
 
-class EventListener(Process):
-    """Catchs events using pyHook."""
-
-    def __init__(self, sema):
-        super(EventListener, self).__init__()
-        self.sema = sema
-
-    def fire(self):
-        #print('releasing')
-        self.sema.release()
-        #print('released')
-
-    def run(self):
-        self.hot = pyhk.pyhk()
-        # don't pass self.sema.relaese here
-        # don't know why
-        self.hot.addHotkey(['Alt', 'F'], self.fire)
-        self.hot.start()
-
-
-class EventProcessor(QThread):
-    """Gets events from the EventListener."""
-
-    fire = Signal()
-
-    def __init__(self, sema):
-        super(EventProcessor, self).__init__()
-        self.sema = sema
-        self.running = True
-
-    def run(self):
-        while self.running:
-            #print('acquiring')
-            self.sema.acquire()
-            #print('acquired')
-            if self.running:
-                #print('emiting')
-                self.fire.emit()
-
-
 class Lit(QWidget):
 
     def __init__(self, plugins=[]):
@@ -162,13 +108,17 @@ class Lit(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
         self.setWindowTitle('lit')
 
-        sema = Semaphore(0)
-        self.sema = sema
-        self.event_listener = EventListener(sema)
-        self.event_listener.start()
-        self.event_processor = EventProcessor(sema)
-        self.event_processor.fire.connect(self.toggle_visibility)
-        self.event_processor.start()
+        self.hotkey_thread = HotkeyThread()
+        self.hotkey_thread.fire.connect(self.handle_hotkey)
+        self.hotkey_thread.start()
+
+        #sema = Semaphore(0)
+        #self.sema = sema
+        #self.event_listener = EventListener(sema)
+        #self.event_listener.start()
+        #self.event_processor = EventProcessor(sema)
+        #self.event_processor.fire.connect(self.toggle_visibility)
+        #self.event_processor.start()
 
         #qApp.installEventFilter(self)
 
@@ -197,8 +147,11 @@ class Lit(QWidget):
         self._move_to_center()
         self.super.resizeEvent(e)
 
+    def handle_hotkey(self, key):
+        self.toggle_visibility()
+
     def toggle_visibility(self):
-        #print("visible: {}".format(self.window_shown()))
+        logging.info("visible: {}".format(self.window_shown()))
         if self.window_shown():
             self.hide_window()
         else:
@@ -243,11 +196,13 @@ class Lit(QWidget):
 
     def act(self):
         if self.cmd == 'exit':
-            self.event_listener.terminate()
-            if self.event_processor.isRunning():
-                self.event_processor.running = False
-                self.sema.release()
-                self.event_processor.wait()
+            #self.event_listener.terminate()
+            #if self.event_processor.isRunning():
+                #self.event_processor.running = False
+                #self.sema.release()
+                #self.event_processor.wait()
+            self.hotkey_thread.running = False
+            self.hotkey_thread.wait()
             QApplication.quit()
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
@@ -404,6 +359,63 @@ class Input(QLineEdit):
         #completer.setWidget(self)
 
 
+class Application(QApplication):
+
+    def __init__(self, argv):
+        self.super.__init__(argv)
+
+    @property
+    def super(self):
+        return super(Application, self)
+
+
+class HotkeyThread(QThread):
+    """http://evenrain.com/pyside-detect-usb-device-plugin-and-remove/"""
+
+    fire = Signal(int)
+
+    def __init__(self):
+        QThread.__init__(self)
+        self.running = True
+
+    @property
+    def super(self):
+        return super(HotkeyThread, self)
+
+    def handle_hotkey(self, hwnd, msg, wp, lp):
+        logging.info('fire')
+        self.fire.emit(int(wp))
+        return True
+
+    def run(self):
+        wc = win32gui.WNDCLASS()
+        wc.lpszClassName = 'test_devicenotify'
+        wc.style = win32con.CS_GLOBALCLASS | win32con.CS_VREDRAW | win32con.CS_HREDRAW
+        wc.hbrBackground = win32con.COLOR_WINDOW + 1
+        wc.lpfnWndProc = {win32con.WM_HOTKEY: self.handle_hotkey}
+        win32gui.RegisterClass(wc)
+
+        # 產生一個不可見的視窗
+        hwnd = win32gui.CreateWindow(wc.lpszClassName,
+            'Testing some devices',
+            win32con.WS_CAPTION,
+            100, 100, 900, 900, 0, 0, 0, None)
+
+        if not ctypes.windll.user32.RegisterHotKey(
+            hwnd,
+            42,
+            win32con.MOD_ALT,
+            0x46
+        ):
+            logging.warning('ALT+F is already registered by others.')
+
+        # 開始 message pump，等待通知被傳遞
+        while self.running:
+            win32gui.PumpWaitingMessages()
+        win32gui.DestroyWindow(hwnd)
+        win32gui.UnregisterClass(wc.lpszClassName, None)
+
+
 def main(argv):
     logging.basicConfig(
         filename=os.path.expanduser('~/.lig.log'),
@@ -412,9 +424,7 @@ def main(argv):
         level=logging.DEBUG
     )
     try:
-        freeze_support()
-
-        app = QApplication(argv)
+        app = Application(argv)
         STYLESHEET = 'style.css'
         app.setOrganizationName('helanic')
         app.setOrganizationDomain('answeror.com')
@@ -427,6 +437,7 @@ def main(argv):
 
         lit = Lit([Go(), Run()])
         lit.show()
+
         return app.exec_()
     except Exception as e:
         logging.error(e)
