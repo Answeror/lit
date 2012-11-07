@@ -5,7 +5,7 @@ from lit import LitPlugin
 import re
 import win32gui
 from win32con import SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOW
-import windows
+import windows as winutils
 from datetime import datetime
 from utils import damerau_levenshtein_distance
 
@@ -48,7 +48,7 @@ class Go(LitPlugin):
         for window in self.windows:
             if arg == window[1]:
                 self.usetime[arg] = datetime.now()
-                windows.goto(window[0])
+                winutils.goto(window[0])
                 return
         del self.usetime[arg]
 
@@ -62,5 +62,6 @@ class Go(LitPlugin):
     def _windowEnumTopLevel(hwnd, windowsList):
         """ Window Enum function for getTopLevelWindows """
         title = win32gui.GetWindowText(hwnd)
-        if win32gui.GetParent(hwnd) == 0 and title != '':
+        #if win32gui.GetParent(hwnd) == 0 and title != '':
+        if winutils.is_alt_tab_window(hwnd):
             windowsList.append((hwnd, title))

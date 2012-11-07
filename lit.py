@@ -32,7 +32,8 @@ import win32con
 
 
 # these config should be saved
-MAX_LIST_LENGTH = 12
+MAX_LIST_LENGTH = 20
+MAX_VISIBLE_ITEMS = 12
 
 
 def winid(self):
@@ -271,7 +272,7 @@ class Completer(QCompleter):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
         self.setPopup(CenterListView())
-        self.setMaxVisibleItems(12)
+        self.setMaxVisibleItems(MAX_VISIBLE_ITEMS)
         if not parent is None:
             self.setWidget(parent)
 
@@ -405,9 +406,9 @@ class HotkeyThread(QThread):
 
         # 產生一個不可見的視窗
         hwnd = win32gui.CreateWindow(wc.lpszClassName,
-            'Testing some devices',
+            'Fake window to handle lit hotkey',
             win32con.WS_CAPTION,
-            100, 100, 900, 900, 0, 0, 0, None)
+            0, 0, 1, 1, 0, 0, 0, None)
 
         if not ctypes.windll.user32.RegisterHotKey(
             hwnd,
@@ -426,7 +427,7 @@ class HotkeyThread(QThread):
 
 def main(argv):
     logging.basicConfig(
-        filename=os.path.expanduser('~/.lig.log'),
+        filename=os.path.expanduser('~/.lit.log'),
         filemode='w',
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.DEBUG
