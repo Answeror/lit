@@ -105,7 +105,11 @@ class Lit(QWidget):
         lay.addWidget(self.inp)
         self.setLayout(lay)
         self._install_plugins(plugins)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.Popup
+            | Qt.WindowStaysOnTopHint
+        )
         self.setWindowTitle('lit')
 
         self.hotkey_thread = HotkeyThread()
@@ -225,6 +229,10 @@ class Lit(QWidget):
             self.inp.blockSignals(state)
         self.completer.popup().hide()
         self.super.hideEvent(e)
+
+    def closeEvent(self, e):
+        logging.info('closing')
+        self.super.closeEvent(e)
 
     # cannot write here, don't know why
     #def closeEvent(self, e):
@@ -429,6 +437,7 @@ def main(argv):
         app.setOrganizationName('helanic')
         app.setOrganizationDomain('answeror.com')
         app.setApplicationName('lit')
+        app.setQuitOnLastWindowClosed(False)
         # style
         with open(STYLESHEET, 'r') as f:
             app.setStyleSheet(f.read())
