@@ -2,12 +2,42 @@
 # -*- coding: utf-8 -*-
 
 from lit import LitPlugin
-import re
 import win32gui
-from win32con import SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOW
 import windows as winutils
 from datetime import datetime
 from utils import damerau_levenshtein_distance
+import stream as sm
+from PySide.QtCore import Qt, QAbstractListModel
+
+
+class WindowModel(QAbstractListModel):
+
+    def __init__(self, names, icons):
+        self.super.__init__()
+        self.names = names
+        self.icons = icons
+
+    @property
+    def super(self):
+        return super(WindowModel, self)
+
+    def rowCount(self, parent):
+        return len(self.names)
+
+    def columnCount(self, parent):
+        return 1
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None
+        if role == Qt.TextAlignmentRole:
+            return int(Qt.AlignLeft | Qt.AlignVCenter)
+        elif role == Qt.DisplayRole:
+            return self.names[index.row()]
+        elif role == Qt.DecorationRole:
+            return self.icons[index.row()]
+        else:
+            return None
 
 
 class Go(LitPlugin):
@@ -19,8 +49,7 @@ class Go(LitPlugin):
     def name(self):
         return 'g'
 
-    def lit(self, query):
-        self.windows = self._getTopLevelWindows()
+    def sorted_window_names(self, query):
         names = [w[1] for w in self.windows]
 
         # update use time
@@ -41,8 +70,19 @@ class Go(LitPlugin):
             substitution_cost=100,
             transposition_cost=10
         )
-        return sorted(names, key=f)
         # Icon for the window can be extracted with WM_GETICON, but it's too much for now
+        return sorted(names, key=f)
+
+    def update_window_list(self):
+        self.windows = self._getTopLevelWindows()
+
+    def lit(self, query, upper_bound, *args, **kargs):
+        self.update_window_list()
+        names = self.sorted_window_names(query)[:upper_bound]
+        d = dict(self.windows >> sm.apply(lambda h, n: (n, h)))
+        hwnds = names >> sm.map(lambda name: d[name]) >> list
+        icons = hwnds >> sm.map(winutils.get_window_icon) >> list
+        return WindowModel(names, icons)
 
     def select(self, arg):
         for window in self.windows:

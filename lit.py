@@ -19,7 +19,8 @@ from PySide.QtCore import (
     QEvent,
     QTimer,
     QThread,
-    Signal
+    Signal,
+    QAbstractItemModel
 )
 import stream as sm
 import os
@@ -189,10 +190,10 @@ class Lit(QWidget):
         else:
             if cmd is None:
                 if not self.default_plugin is None:
-                    self.popup(self.default_plugin.lit(arg))
+                    self.popup(self.default_plugin.lit(arg, upper_bound=MAX_LIST_LENGTH))
             else:
                 if cmd in self.plugins:
-                    self.popup(self.plugins[cmd].lit(arg))
+                    self.popup(self.plugins[cmd].lit(arg, upper_bound=MAX_LIST_LENGTH))
 
     def select(self, text):
         cmd = self.cmd
@@ -212,8 +213,8 @@ class Lit(QWidget):
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
-    def popup(self, items):
-        self.completer.update(items[:MAX_LIST_LENGTH])
+    def popup(self, result):
+        self.completer.update(result)
 
     def showEvent(self, e):
         QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
@@ -284,9 +285,12 @@ class Completer(QCompleter):
     def super(self):
         return super(Completer, self)
 
-    def update(self, items):
-        model = QStringListModel()
-        model.setStringList(items >> sm.map(str) >> list)
+    def update(self, result):
+        if isinstance(result, QAbstractItemModel):
+            model = result
+        else:
+            model = QStringListModel()
+            model.setStringList(result >> sm.map(str) >> list)
         self.setModel(model)
         self.setCompletionPrefix('')
         self.complete()

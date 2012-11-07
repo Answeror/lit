@@ -31,7 +31,7 @@ class Run(LitPlugin):
     def name(self):
         return 'r'
 
-    def lit(self, query):
+    def lit(self, query, upper_bound, *args, **kargs):
         query = query.lower()
         f = lambda name: damerau_levenshtein_distance(
             query,
@@ -42,7 +42,7 @@ class Run(LitPlugin):
             transposition_cost=10
         )
         names = self.d.keys()
-        return sorted(names, key=f)
+        return sorted(names, key=f)[:upper_bound]
 
     def select(self, name):
         if name in self.d:

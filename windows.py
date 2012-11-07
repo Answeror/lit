@@ -27,8 +27,15 @@ from ctypes import (
 )
 from ctypes.wintypes import (
     DWORD,
+    LONG,
+    WORD,
+    BYTE,
     RECT
 )
+
+from PySide.QtGui import QPixmap, QImage
+from PySide.QtCore import Qt
+import logging
 
 
 class tagTITLEBARINFO(Structure):
@@ -154,3 +161,172 @@ def is_alt_tab_window(hwnd):
         return False
 
     return True
+
+
+def get_window_icon(hwnd):
+    """Return QPixmap."""
+    hicon = win32gui.GetClassLong(hwnd, win32con.GCL_HICON)
+    if hicon:
+        return fromWinHICON(hicon).scaled(32, 32)
+    else:
+        ret = QPixmap(32, 32)
+        ret.fill(Qt.transparent)
+        return ret
+    #info = win32gui.GetIconInfo(hicon)
+    #try:
+        #return QPixmap.fromWinHBITMAP(info[4])
+    #finally:
+        #for i in [3, 4]:
+            #info[i].close()
+
+
+class tagBITMAPINFOHEADER(Structure):
+    pass
+tagBITMAPINFOHEADER._fields_ = [
+    ('biSize', DWORD),
+    ('biWidth', LONG),
+    ('biHeight', LONG),
+    ('biPlanes', WORD),
+    ('biBitCount', WORD),
+    ('biCompression', DWORD),
+    ('biSizeImage', DWORD),
+    ('biXPelsPerMeter', LONG),
+    ('biYPelsPerMeter', LONG),
+    ('biClrUsed', DWORD),
+    ('biClrImportant', DWORD),
+]
+PBITMAPINFOHEADER = POINTER(tagBITMAPINFOHEADER)
+BITMAPINFOHEADER = tagBITMAPINFOHEADER
+LPBITMAPINFOHEADER = POINTER(tagBITMAPINFOHEADER)
+
+
+class tagRGBQUAD(Structure):
+    pass
+tagRGBQUAD._fields_ = [
+    ('rgbBlue', BYTE),
+    ('rgbGreen', BYTE),
+    ('rgbRed', BYTE),
+    ('rgbReserved', BYTE),
+]
+RGBQUAD = tagRGBQUAD
+LPRGBQUAD = POINTER(RGBQUAD)
+
+
+class tagBITMAPINFO(Structure):
+    pass
+tagBITMAPINFO._fields_ = [
+    ('bmiHeader', BITMAPINFOHEADER),
+    ('bmiColors', RGBQUAD * 1),
+]
+PBITMAPINFO = POINTER(tagBITMAPINFO)
+LPBITMAPINFO = POINTER(tagBITMAPINFO)
+BITMAPINFO = tagBITMAPINFO
+
+
+def qt_fromWinHBITMAP(hdc, bitmap, w, h):
+    bmi = BITMAPINFO()
+    ctypes.memset(ctypes.byref(bmi), 0, ctypes.sizeof(bmi))
+    bmi.bmiHeader.biSize        = ctypes.sizeof(BITMAPINFOHEADER)
+    bmi.bmiHeader.biWidth       = w
+    bmi.bmiHeader.biHeight      = -h
+    bmi.bmiHeader.biPlanes      = 1
+    bmi.bmiHeader.biBitCount    = 32
+    bmi.bmiHeader.biCompression = win32con.BI_RGB
+    bmi.bmiHeader.biSizeImage   = w * h * 4
+
+    image = QImage(w, h, QImage.Format_ARGB32_Premultiplied)
+    if image.isNull():
+        return image
+
+    # Get bitmap bits
+    data = ctypes.create_string_buffer(bmi.bmiHeader.biSizeImage)
+
+    if ctypes.windll.gdi32.GetDIBits(
+        hdc,
+        bitmap,
+        0,
+        h,
+        data,
+        ctypes.byref(bmi),
+        win32con.DIB_RGB_COLORS
+    ):
+        # Create image and copy data into image.
+        for y in range(h):
+            dest = image.scanLine(y);
+            offset = y * image.bytesPerLine()
+            dest[:] = data.raw[offset:offset + image.bytesPerLine()]
+    else:
+        logging.error("qt_fromWinHBITMAP(), failed to get bitmap bits")
+
+    return image
+
+def fromWinHICON(icon):
+    foundAlpha = False
+    screenDevice = win32gui.GetDC(0)
+    hdc = win32gui.CreateCompatibleDC(screenDevice)
+    win32gui.ReleaseDC(0, screenDevice)
+
+    fIcon, xHotspot, yHotspot, hbmMask, hbmColor = win32gui.GetIconInfo(icon)  # x and y Hotspot describes the icon center
+
+    w = xHotspot * 2;
+    h = yHotspot * 2;
+
+    bitmapInfo = BITMAPINFOHEADER()
+    bitmapInfo.biSize        = ctypes.sizeof(BITMAPINFOHEADER)
+    bitmapInfo.biWidth       = w
+    bitmapInfo.biHeight      = h
+    bitmapInfo.biPlanes      = 1
+    bitmapInfo.biBitCount    = 32
+    bitmapInfo.biCompression = win32con.BI_RGB
+    bitmapInfo.biSizeImage   = 0
+    bitmapInfo.biXPelsPerMeter = 0
+    bitmapInfo.biYPelsPerMeter = 0
+    bitmapInfo.biClrUsed       = 0
+    bitmapInfo.biClrImportant  = 0
+
+    winBitmap = ctypes.windll.gdi32.CreateDIBSection(
+        hdc,
+        ctypes.byref(bitmapInfo),
+        win32con.DIB_RGB_COLORS,
+        ctypes.c_void_p(),
+        win32con.NULL,
+        0
+    )
+    oldhdc = win32gui.SelectObject(hdc, winBitmap)
+    win32gui.DrawIconEx(hdc, 0, 0, icon, xHotspot * 2,
+                        yHotspot * 2, 0, 0, DI_NORMAL)
+    image = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
+
+    #for y in range(h):
+        #if foundAlpha:
+            #break
+        #QRgb *scanLine= reinterpret_cast<QRgb *>(image.scanLine(y));
+        #for (int x = 0; x < w ; x++) {
+            #if (qAlpha(scanLine[x]) != 0) {
+                #foundAlpha = true;
+                #break;
+            #}
+        #}
+    #}
+    #if not foundAlpha):
+        ## If no alpha was found, we use the mask to set alpha values
+        #win32gui.DrawIconEx(hdc, 0, 0, icon, w, h, 0, 0, win32con.DI_MASK)
+        #mask = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
+
+        #for y in range(h):
+            #QRgb *scanlineImage = reinterpret_cast<QRgb *>(image.scanLine(y));
+            #QRgb *scanlineMask = mask.isNull() ? 0 : reinterpret_cast<QRgb *>(mask.scanLine(y));
+            #for (int x = 0; x < w ; x++){
+                #if (scanlineMask && qRed(scanlineMask[x]) != 0)
+                    #scanlineImage[x] = 0; //mask out this pixel
+                #else
+                    #scanlineImage[x] |= 0xff000000; // set the alpha channel to 255
+
+    # dispose resources created by iconinfo call
+    win32gui.DeleteObject(hbmMask)
+    win32gui.DeleteObject(hbmColor)
+
+    win32gui.SelectObject(hdc, oldhdc)  # restore state
+    win32gui.DeleteObject(winBitmap)
+    win32gui.DeleteDC(hdc)
+    return QPixmap.fromImage(image)
