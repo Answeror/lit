@@ -1,8 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+'''
+For some reason, calling a main() function to start the
+application as in earlier examples produces a runtime error
+when the application is closed:
+    QObject::startTimer: QTimer can only be used with threads
+        started with QThread
 
-from PySide.QtGui import (
+Start the application directly and no error occurs.
+
+See <http://www.pyinmyeye.com/2012/01/qt-48-modelview-read-only-table-view.html> for deatils.
+'''
+
+
+from PyQt4.QtGui import (
     QApplication,
     QWidget,
     QLineEdit,
@@ -12,16 +24,24 @@ from PySide.QtGui import (
     QKeyEvent,
     QAbstractItemView,
     QListView,
-    QItemSelectionModel
+    QItemSelectionModel,
+    QItemDelegate,
+    QStyledItemDelegate
 )
-from PySide.QtCore import (
+from PyQt4.QtCore import (
     Qt,
     QEvent,
     QTimer,
     QThread,
-    Signal,
-    QAbstractItemModel
+    pyqtSignal,
+    QAbstractItemModel,
+    QModelIndex,
+    pyqtSlot
 )
+Signal = pyqtSignal
+Slot = pyqtSlot
+from qt import QT_API, QT_API_PYQT
+
 import stream as sm
 import os
 import re
@@ -38,15 +58,18 @@ MAX_VISIBLE_ITEMS = 12
 
 
 def winid(self):
-    _QWidget_winId = QWidget.winId
-    if sys.version_info[0] == 2:
-        ctypes.pythonapi.PyCObject_AsVoidPtr.restype = ctypes.c_void_p
-        ctypes.pythonapi.PyCObject_AsVoidPtr.argtypes = [ctypes.py_object]
-        return ctypes.pythonapi.PyCObject_AsVoidPtr(_QWidget_winId(self))
-    elif sys.version_info[0] == 3:
-        ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
-        ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object]
-        return ctypes.pythonapi.PyCapsule_GetPointer(_QWidget_winId(self), None)
+    if QT_API == QT_API_PYQT:
+        return self.winId()
+    else:
+        _QWidget_winId = QWidget.winId
+        if sys.version_info[0] == 2:
+            ctypes.pythonapi.PyCObject_AsVoidPtr.restype = ctypes.c_void_p
+            ctypes.pythonapi.PyCObject_AsVoidPtr.argtypes = [ctypes.py_object]
+            return ctypes.pythonapi.PyCObject_AsVoidPtr(_QWidget_winId(self))
+        elif sys.version_info[0] == 3:
+            ctypes.pythonapi.PyCapsule_GetPointer.restype = ctypes.c_void_p
+            ctypes.pythonapi.PyCapsule_GetPointer.argtypes = [ctypes.py_object]
+            return ctypes.pythonapi.PyCapsule_GetPointer(_QWidget_winId(self), None)
 
 
 def hwnd(win):
@@ -103,7 +126,7 @@ class Lit(QWidget):
         self.inp.textChanged.connect(self.query)
         self.completer = Completer(self.inp)
         #self.inp.setCompleter(self.completer)
-        self.completer.activated.connect(self.select)
+        self.completer.activated[QModelIndex].connect(self.select)
         lay.addWidget(self.inp)
         self.setLayout(lay)
         self._install_plugins(plugins)
@@ -195,9 +218,10 @@ class Lit(QWidget):
                 if cmd in self.plugins:
                     self.popup(self.plugins[cmd].lit(arg, upper_bound=MAX_LIST_LENGTH))
 
-    def select(self, text):
+    def select(self, index):
         cmd = self.cmd
-        #self.hide_window()
+        text = self.completer.completionModel().data(index)
+        self.hide_window()
         self.plugins[cmd].select(text)
 
     def act(self):
@@ -248,14 +272,30 @@ class Lit(QWidget):
             #print('waited')
 
 
+class RowDelegate(QItemDelegate):
+
+    def __init__(self, parent):
+        self.super.__init__(parent)
+
+    @property
+    def super(self):
+        return super(QItemDelegate, self)
+
+    def sizeHint(self, option, index):
+        s = QItemDelegate.sizeHint(self, option, index)
+        s.setHeight(s.height() + 10)
+        return s
+
+
 class CenterListView(QListView):
     """Always scroll to center."""
 
     def __init__(self, parent=None):
-        self.super.__init__(parent=parent)
+        self.super.__init__(parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         #self.setSpacing(2)
         #self.setItemDelegate(QStyledItemDelegate())
+        #self.setItemDelegate(RowDelegate(self))
 
     @property
     def super(self):
@@ -273,6 +313,8 @@ class Completer(QCompleter):
         super(Completer, self).__init__(parent=parent)
         self.windows = []
         self.setPopup(CenterListView())
+        #self.popup().setItemDelegate(RowDelegate(self))
+        #self.popup().setItemDelegate(QStyledItemDelegate(self))
         self.setMaxVisibleItems(MAX_VISIBLE_ITEMS)
         if not parent is None:
             self.setWidget(parent)
@@ -429,7 +471,7 @@ class HotkeyThread(QThread):
         win32gui.UnregisterClass(wc.lpszClassName, None)
 
 
-def main(argv):
+if __name__ == '__main__':
     logging.basicConfig(
         filename=os.path.expanduser('~/.lit.log'),
         filemode='w',
@@ -437,26 +479,30 @@ def main(argv):
         level=logging.DEBUG
     )
     try:
+        import sys
+        argv = sys.argv
         app = Application(argv)
         STYLESHEET = 'style.css'
         app.setOrganizationName('helanic')
         app.setOrganizationDomain('answeror.com')
         app.setApplicationName('lit')
         app.setQuitOnLastWindowClosed(False)
+
         # style
         with open(STYLESHEET, 'r') as f:
             app.setStyleSheet(f.read())
+
         from go import Go
         from run import Run
-
         lit = Lit([Go(), Run()])
         lit.show()
 
-        return app.exec_()
+        #return app.exec_()
+        app.exec_()
     except Exception as e:
         logging.error(e)
 
 
-if __name__ == '__main__':
-    import sys
-    main(sys.argv[1:])
+#if __name__ == '__main__':
+    #import sys
+    #main(sys.argv)

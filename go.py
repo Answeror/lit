@@ -7,7 +7,7 @@ import windows as winutils
 from datetime import datetime
 from utils import damerau_levenshtein_distance
 import stream as sm
-from PySide.QtCore import Qt, QAbstractListModel
+from PyQt4.QtCore import Qt, QAbstractListModel
 
 
 class WindowModel(QAbstractListModel):

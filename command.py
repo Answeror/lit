@@ -46,7 +46,7 @@ class PyQt4UiBuild:
         fp.close()
 
 
-class QtUiBuild(Command, PySideUiBuild):
+class QtUiBuild(Command, PyQt4UiBuild):
     description = "build Python modules from Qt Designer .ui files"
 
     user_options = []

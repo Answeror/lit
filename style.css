@@ -38,6 +38,14 @@ Toggler:checked {
     line-height: 27px;
 }
 
+QListView::item {
+	margin: 20px;
+}
+ 
+QListView::item:selected {
+	background: orange;
+}
+
 QListView QAbstractItemView::item {
     min-height: 50px;
     padding: 5px;

@@ -33,8 +33,8 @@ from ctypes.wintypes import (
     RECT
 )
 
-from PySide.QtGui import QPixmap, QImage
-from PySide.QtCore import Qt
+from PyQt4.QtGui import QPixmap, QImage
+from PyQt4.QtCore import Qt
 import logging
 
 
@@ -166,10 +166,12 @@ def is_alt_tab_window(hwnd):
 def get_window_icon(hwnd):
     """Return QPixmap."""
     hicon = win32gui.GetClassLong(hwnd, win32con.GCL_HICON)
+    width = 16
+    height = 16
     if hicon:
-        return fromWinHICON(hicon).scaled(32, 32)
+        return QPixmap.fromWinHICON(hicon).scaled(width, height)
     else:
-        ret = QPixmap(32, 32)
+        ret = QPixmap(width, height)
         ret.fill(Qt.transparent)
         return ret
     #info = win32gui.GetIconInfo(hicon)
