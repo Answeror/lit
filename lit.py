@@ -50,6 +50,7 @@ import ctypes
 import windows
 import logging
 import win32con
+import time
 
 
 # these config should be saved
@@ -467,6 +468,7 @@ class HotkeyThread(QThread):
         # 開始 message pump，等待通知被傳遞
         while self.running:
             win32gui.PumpWaitingMessages()
+            time.sleep(0.04) # 25Hz
         win32gui.DestroyWindow(hwnd)
         win32gui.UnregisterClass(wc.lpszClassName, None)
 

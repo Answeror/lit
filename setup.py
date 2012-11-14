@@ -5,7 +5,7 @@ from cx_Freeze import setup, Executable
 from command import cmds
 
 
-includes = ['pyHook._cpyHook', 'atexit']
+includes = []
 excludes = []
 packages = []
 
