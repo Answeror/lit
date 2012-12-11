@@ -56,6 +56,7 @@ class Suggest(QWidget):
         self.editor = parent
         self.popup = None
         self.set_popup(CenterListView())
+        #self.editor.installEventFilter(self)
 
     def set_popup(self, popup):
         if self.popup:
@@ -64,8 +65,8 @@ class Suggest(QWidget):
         self.popup = popup
         popup.setWindowFlags(Qt.Popup)
         popup.setFocusPolicy(Qt.NoFocus)
-        popup.setFocusProxy(self.editor)
-        popup.setMouseTracking(True)
+        #popup.setFocusProxy(self.editor)
+        #popup.setMouseTracking(True)
 
         popup.installEventFilter(self)
 
@@ -80,73 +81,88 @@ class Suggest(QWidget):
             self.activated.emit(index)
 
     def eventFilter(self, o, e):
-        if not o is self.popup:
-            return False
+        #if e.type() == QEvent.MouseButtonPress:
+            ##self.popup.hide()
+            #self.editor.setFocus()
+            #return True
 
-        if e.type() == QEvent.MouseButtonPress:
-            self.popup.hide()
-            self.editor.setFocus()
-            return True
-
-        if e.type() == QEvent.KeyPress:
-            key = e.key()
-            if e.key() == Qt.Key_Tab or e.key() == Qt.Key_J and e.modifiers() & Qt.ControlModifier:
-                ne = QKeyEvent(
-                    QEvent.KeyPress,
-                    Qt.Key_Down,
-                    e.modifiers(),
-                    ''
-                )
-                QApplication.sendEvent(o, ne)
-                return True
-            elif e.key() == Qt.Key_Tab or e.key() == Qt.Key_K and e.modifiers() & Qt.ControlModifier:
-                ne = QKeyEvent(
-                    QEvent.KeyPress,
-                    Qt.Key_Up,
-                    e.modifiers(),
-                    e.text(),
-                    e.isAutoRepeat(),
-                    e.count()
-                )
-                QApplication.sendEvent(o, ne)
-                return True
-            elif e.key() == Qt.Key_Up and self.attop:
-                ne = QKeyEvent(
-                    QEvent.KeyPress,
-                    Qt.Key_End,
-                    Qt.ControlModifier
-                )
-                QApplication.sendEvent(o, ne)
-                return True
-            elif e.key() == Qt.Key_Down and self.atbottom:
-                ne = QKeyEvent(
-                    QEvent.KeyPress,
-                    Qt.Key_Home,
-                    Qt.ControlModifier
-                )
-                QApplication.sendEvent(o, ne)
-                return True
-            elif key in (Qt.Key_Enter, Qt.Key_Return):
-                self.done(self.popup.currentIndex())
-                return True
-            #elif key in (Qt.Key_Escape, ):
-                #self.editor.setFocus()
-                #self.popup.hide()
-                #return True
-            elif key in (
-                    Qt.Key_Up,
-                    Qt.Key_Down,
-                    Qt.Key_Home,
-                    Qt.Key_End,
-                    Qt.Key_PageUp,
-                    Qt.Key_PageDown
-                    ):
-                pass
-            else:
+        if o == self.popup:
+            if not self.popup.underMouse() and e.type() in (
+                QEvent.MouseButtonPress,
+                #QEvent.MouseButtonRelease,
+                #QEvent.MouseButtonDblClick,
+                #QEvent.MouseMove
+            ):
+                self.popup.hide()
                 self.editor.setFocus()
-                #self.editor.event(e)
-                QApplication.sendEvent(self.editor, e)
-                #self.popup.hide()
+                #QApplication.sendEvent(self.editor, e)
+                return True
+            elif e.type() == QEvent.KeyPress:
+                key = e.key()
+                if e.key() == Qt.Key_Tab or e.key() == Qt.Key_J and e.modifiers() & Qt.ControlModifier:
+                    ne = QKeyEvent(
+                        QEvent.KeyPress,
+                        Qt.Key_Down,
+                        e.modifiers(),
+                        ''
+                    )
+                    QApplication.sendEvent(o, ne)
+                    return True
+                elif e.key() == Qt.Key_Tab or e.key() == Qt.Key_K and e.modifiers() & Qt.ControlModifier:
+                    ne = QKeyEvent(
+                        QEvent.KeyPress,
+                        Qt.Key_Up,
+                        e.modifiers(),
+                        e.text(),
+                        e.isAutoRepeat(),
+                        e.count()
+                    )
+                    QApplication.sendEvent(o, ne)
+                    return True
+                elif e.key() == Qt.Key_Up and self.attop:
+                    ne = QKeyEvent(
+                        QEvent.KeyPress,
+                        Qt.Key_End,
+                        Qt.ControlModifier
+                    )
+                    QApplication.sendEvent(o, ne)
+                    return True
+                elif e.key() == Qt.Key_Down and self.atbottom:
+                    ne = QKeyEvent(
+                        QEvent.KeyPress,
+                        Qt.Key_Home,
+                        Qt.ControlModifier
+                    )
+                    QApplication.sendEvent(o, ne)
+                    return True
+                elif key in (Qt.Key_Enter, Qt.Key_Return):
+                    self.done(self.popup.currentIndex())
+                    return True
+                #elif key in (Qt.Key_Escape, ):
+                    #self.editor.setFocus()
+                    #self.popup.hide()
+                    #return True
+                #elif key in (
+                    #Qt.Key_Home,
+                    #Qt.Key_End,
+                #):
+                    #QApplication.sendEvent(self.editor, e)
+                    #return True
+                #elif key in (
+                        #Qt.Key_Up,
+                        #Qt.Key_Down,
+                        #Qt.Key_Home,
+                        #Qt.Key_End,
+                        #Qt.Key_PageUp,
+                        #Qt.Key_PageDown
+                        #):
+                    #pass
+                else:
+                    #self.editor.setFocus()
+                    #self.editor.event(e)
+                    #TODO: why HOME and END not processed by editor?
+                    QApplication.sendEvent(self.editor, e)
+                    #self.popup.hide()
 
         return self.super.eventFilter(o, e)
 
@@ -188,7 +204,7 @@ class Suggest(QWidget):
             h = self.popup.sizeHintForRow(0) * min(7, row_count) + 3
             self.popup.resize(self.editor.width(), h)
             self.popup.move(self.editor.mapToGlobal(QPoint(0, self.editor.height())))
-            self.popup.setFocus()
+            #self.popup.setFocus()
             self.popup.show()
 
             first_index = self.popup.model().index(0, 0)

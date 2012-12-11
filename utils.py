@@ -68,3 +68,43 @@ def levenshtein(
             a[current_row][j + 1] = min(insertions, deletions, substitutions)
 
     return a[len(s1)][-1]
+
+
+def _common_prefix_length(s1, s2):
+    for i, (c1, c2) in enumerate(zip(s1, s2)):
+        if c1 != c2:
+            return i
+    return min(len(s1), len(s2))
+
+
+class Query(object):
+
+    def __init__(
+        self,
+        text,
+        deletion_cost=1,
+        insertion_cost=1,
+        substitution_cost=1,
+        transposition_cost=1
+    ):
+        self.text = text
+        self.deletion_cost = deletion_cost
+        self.insertion_cost = insertion_cost
+        self.substitution_cost = substitution_cost
+        self.transposition_cost = transposition_cost
+        self.memo = []
+
+    def update(self, text):
+        self.memo = self.memo[:_common_prefix_length(self.text, text) + 1]
+        self.text = text
+
+    def distance_to(self, text):
+        return levenshtein(
+            self.text,
+            text,
+            deletion_cost=self.deletion_cost,
+            insertion_cost=self.insertion_cost,
+            substitution_cost=self.substitution_cost,
+            transposition_cost=self.transposition_cost,
+            memo=self.memo
+        )
