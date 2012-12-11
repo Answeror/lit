@@ -37,6 +37,7 @@ from pywingui.winuser import MAKEINTRESOURCE
 from PyQt4.QtGui import QPixmap, QImage
 from PyQt4.QtCore import Qt
 import logging
+import win32com.client
 
 
 class tagTITLEBARINFO(Structure):
@@ -49,6 +50,8 @@ tagTITLEBARINFO._fields_ = [
 PTITLEBARINFO = POINTER(tagTITLEBARINFO)
 LPTITLEBARINFO = POINTER(tagTITLEBARINFO)
 TITLEBARINFO = tagTITLEBARINFO
+
+ASFW_ANY = -1
 
 
 GetWindowThreadProcessId = windll.user32.GetWindowThreadProcessId
@@ -86,33 +89,58 @@ def SetForegroundWindowInternal(hWnd):
 
 
 def goto(hwnd):
+    #_, pid = win32process.GetWindowThreadProcessId(hwnd)
+    #shell = win32com.client.Dispatch('WScript.Shell')
+    #shell.AppActivate(pid)
+    #shell.SendKeys(r'(% )x')
+    _old(hwnd)
+
+
+def _old(hwnd):
+    """So ugly here..."""
     if not win32gui.IsWindow(hwnd):
         return
 
-    _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
-
-    # to show window owned by admin process when running in user process
-    # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
-    # for details
-    if showCmd == SW_SHOWMINIMIZED:
-        #win32gui.ShowWindow(hwnd, SW_RESTORE)
-        win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE, 0)
-    else:
-        #win32gui.ShowWindow(hwnd, SW_SHOW)
-        win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
 
     fgwin = win32gui.GetForegroundWindow()
-    fg = win32process.GetWindowThreadProcessId(fgwin)[0]
+    fg, fp = win32process.GetWindowThreadProcessId(fgwin)
     current = win32api.GetCurrentThreadId()
-    if current != fg:
-        win32process.AttachThreadInput(fg, current, True)
-        win32gui.BringWindowToTop(hwnd)
-        win32gui.SetForegroundWindow(hwnd)
-        win32gui.SetActiveWindow(hwnd)
-        #win32gui.SetFocus(hwnd)
-        win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
-    else:
-        win32gui.SetForegroundWindow(hwnd)
+
+    try:
+        attached = False
+        if current != fg and fg:
+            try:
+                attached = win32process.AttachThreadInput(fg, current, True)
+            except:
+                pass
+            #AllowSetForegroundWindow(ASFW_ANY)
+        _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
+        # to show window owned by admin process when running in user process
+        # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
+        # for details
+        if showCmd == SW_SHOWMINIMIZED:
+            #win32gui.ShowWindow(hwnd, SW_RESTORE)
+            win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE, 0)
+        else:
+            #win32gui.ShowWindow(hwnd, SW_SHOW)
+            win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
+
+        for fn in [
+            win32gui.BringWindowToTop,
+            win32gui.SetForegroundWindow,
+            win32gui.SetActiveWindow,
+            win32gui.SetFocus
+        ]:
+            try:
+                fn(hwnd)
+            except:
+                pass
+
+    finally:
+        if attached:
+            win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
+        #else:
+            #win32gui.SetForegroundWindow(hwnd)
 
 
 def gotold(hwnd):

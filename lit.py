@@ -54,6 +54,7 @@ import logging
 import win32con
 import time
 
+from suggest import Suggest
 
 # these config should be saved
 MAX_LIST_LENGTH = 20
@@ -149,7 +150,7 @@ class Lit(QWidget):
         lay = QVBoxLayout()
         self.inp = Input(self.act, self)
         self.inp.textChanged.connect(self._try_query)
-        self.completer = Completer(self.inp)
+        self.completer = Suggest(self.inp)
         #self.inp.setCompleter(self.completer)
         self.completer.activated[QModelIndex].connect(self.select)
         lay.addWidget(self.inp)
@@ -194,6 +195,13 @@ class Lit(QWidget):
     @property
     def super(self):
         return super(Lit, self)
+
+    #def keyPressEvent(self, e):
+        #if e.key() == Qt.Key_Escape and not self.inp.text():
+            #e.accept()
+            #self.close()
+        #else:
+            #e.ignore()
 
     def _move_to_center(self):
         desktop = QApplication.desktop()
@@ -254,6 +262,7 @@ class Lit(QWidget):
                     plugin = self.plugins[cmd]
             if plugin:
                 ret = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
+                # fixme: why LitJob check failed
                 if isinstance(ret, QThread):
                     # clear previous jobs
                     for job in self.jobs:
@@ -271,7 +280,7 @@ class Lit(QWidget):
 
     def select(self, index):
         cmd = self.cmd
-        text = self.completer.completionModel().data(index)
+        text = self.completer.completionModel().data(index, Qt.DisplayRole)
         self.hide_window()
         self.plugins[cmd].select(text)
 
@@ -308,7 +317,7 @@ class Lit(QWidget):
             self.inp.setText('')
         finally:
             self.inp.blockSignals(state)
-        self.completer.popup().hide()
+        self.completer.hide_popup()
         self.super.hideEvent(e)
 
     def closeEvent(self, e):
@@ -460,11 +469,22 @@ class Input(QLineEdit):
         return super(Input, self)
 
     def keyPressEvent(self, e):
-        {
-            Qt.Key_Escape: lambda: self.setText(''),
-            Qt.Key_Return: self.enter
-        }.get(e.key(), lambda: None)()
-        super(Input, self).keyPressEvent(e)
+        #{
+            #Qt.Key_Escape: lambda: self.setText(''),
+            #Qt.Key_Return: self.enter
+        #}.get(e.key(), lambda: None)()
+        #super(Input, self).keyPressEvent(e)
+
+        if e.key() == Qt.Key_Escape:
+            if self.text():
+                self.setText('')
+                e.accept()
+            else:
+                e.ignore()
+        elif e.key() == Qt.Key_Return:
+            self.enter()
+        else:
+            super(Input, self).keyPressEvent(e)
 
     #def setCompleter(self, completer):
         #completer.setWidget(self)

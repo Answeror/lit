@@ -38,51 +38,51 @@ Toggler:checked {
     line-height: 27px;
 }
 
-QListView::item {
-	margin: 20px;
-}
+/*QListView::item {*/
+	/*margin: 20px;*/
+/*}*/
  
-QListView::item:selected {
-	background: orange;
-}
+/*QListView::item:selected {*/
+	/*background: orange;*/
+/*}*/
 
-QListView QAbstractItemView::item {
-    min-height: 50px;
-    padding: 5px;
-}
+/*QListView QAbstractItemView::item {*/
+    /*min-height: 50px;*/
+    /*padding: 5px;*/
+/*}*/
 
-CenterListView::item {
-    background: #EEEEEE;
-    padding: 5px;
-}
+/*CenterListView::item {*/
+    /*background: #EEEEEE;*/
+    /*padding: 5px;*/
+/*}*/
 
-CenterListView {
-    alternate-background-color: yellow;
-}
+/*CenterListView {*/
+    /*alternate-background-color: yellow;*/
+/*}*/
 
-CenterListView {
-    show-decoration-selected: 1; /* make the selection span the entire width of the view */
-}
+/*CenterListView {*/
+    /*show-decoration-selected: 1; [> make the selection span the entire width of the view <]*/
+/*}*/
 
-CenterListView::item:alternate {
-    background: #EEEEEE;
-}
+/*CenterListView::item:alternate {*/
+    /*background: #EEEEEE;*/
+/*}*/
 
-CenterListView::item:selected {
-    border: 1px solid #6a6ea9;
-}
+/*CenterListView::item:selected {*/
+    /*border: 1px solid #6a6ea9;*/
+/*}*/
 
-CenterListView::item:selected:!active {
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #ABAFE5, stop: 1 #8588B2);
-}
+/*CenterListView::item:selected:!active {*/
+    /*background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,*/
+    /*stop: 0 #ABAFE5, stop: 1 #8588B2);*/
+/*}*/
 
-CenterListView::item:selected:active {
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #6a6ea9, stop: 1 #888dd9);
-}
+/*CenterListView::item:selected:active {*/
+    /*background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,*/
+    /*stop: 0 #6a6ea9, stop: 1 #888dd9);*/
+/*}*/
 
-CenterListView::item:hover {
-    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-    stop: 0 #FAFBFE, stop: 1 #DCDEF1);
-}
+/*CenterListView::item:hover {*/
+    /*background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,*/
+    /*stop: 0 #FAFBFE, stop: 1 #DCDEF1);*/
+/*}*/

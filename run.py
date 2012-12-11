@@ -12,6 +12,7 @@ from PyQt4.QtCore import (
     QMutex,
     QMutexLocker
 )
+import logging
 
 
 def _common_prefix_length(s1, s2):
@@ -98,7 +99,10 @@ class Run(LitPlugin):
         if name in self.d:
             # use shell=True to make lnk valid
             #sp.call(self.d[name], shell=True)
-            win32api.ShellExecute(0, 'open', self.d[name], '', '', 1)
+            try:
+                win32api.ShellExecute(0, 'open', self.d[name].path, '', '', 1)
+            except Exception as e:
+                logging.error(e)
 
 
 class Job(LitJob, QThread):
