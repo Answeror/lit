@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 
 
+import stream as sm
+
+
 def damerau_levenshtein_distance(
     s1,
     s2,
@@ -35,3 +38,33 @@ def damerau_levenshtein_distance(
                 d[(i,j)] = min (d[(i,j)], d[i-2,j-2] + cost * transposition_cost) # transposition
 
     return d[lenstr1-1,lenstr2-1]
+
+
+def levenshtein(
+    s1,
+    s2,
+    deletion_cost=1,
+    insertion_cost=1,
+    substitution_cost=1,
+    transposition_cost=1,
+    memo=[]
+):
+    previous_row = 0
+    a = memo
+
+    if not a:
+        a.append([i * insertion_cost for i in range(len(s2) + 1)])
+
+    for i, c1 in enumerate(s1) >> sm.drop(len(a) - 1):
+        previous_row = i
+        current_row = i + 1
+        a.append([0 for i in range(len(s2) + 1)])
+        a[current_row][0] = (i + 1) * deletion_cost
+        for j, c2 in enumerate(s2):
+            # j+1 instead of j since previous_row and current_row are one character longer
+            insertions = a[current_row][j] + insertion_cost
+            deletions = a[previous_row][j + 1] + deletion_cost
+            substitutions = a[previous_row][j] + (c1 != c2) * substitution_cost
+            a[current_row][j + 1] = min(insertions, deletions, substitutions)
+
+    return a[len(s1)][-1]

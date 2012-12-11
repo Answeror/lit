@@ -36,7 +36,9 @@ from PyQt4.QtCore import (
     pyqtSignal,
     QAbstractItemModel,
     QModelIndex,
-    pyqtSlot
+    pyqtSlot,
+    QMutex,
+    QMutexLocker
 )
 Signal = pyqtSignal
 Slot = pyqtSlot
@@ -101,6 +103,26 @@ class LitPlugin(object):
         _no_impl(self.name.__name__)
 
 
+class LitJob(object):
+    """Time comsuming job."""
+
+    def __init__(self):
+        pass
+
+    def stop(self):
+        pass
+
+    def __call__(self):
+        pass
+
+    def set_done_handle(self, done):
+        pass
+
+    @property
+    def finished(self):
+        _no_impl(self.finished.__name__)
+
+
 class Foo(LitPlugin):
 
     @property
@@ -120,11 +142,13 @@ def parse_query(text):
 
 class Lit(QWidget):
 
+    _job_done_signal = Signal(object)
+
     def __init__(self, plugins=[]):
         super(Lit, self).__init__()
         lay = QVBoxLayout()
         self.inp = Input(self.act, self)
-        self.inp.textChanged.connect(self.query)
+        self.inp.textChanged.connect(self._try_query)
         self.completer = Completer(self.inp)
         #self.inp.setCompleter(self.completer)
         self.completer.activated[QModelIndex].connect(self.select)
@@ -137,6 +161,11 @@ class Lit(QWidget):
             | Qt.WindowStaysOnTopHint
         )
         self.setWindowTitle('lit')
+
+        self.mutex = QMutex()
+
+        self._job_done_signal.connect(self._try_popup)
+        self.jobs = []
 
         self.hotkey_thread = HotkeyThread()
         self.hotkey_thread.fire.connect(self.handle_hotkey)
@@ -205,19 +234,40 @@ class Lit(QWidget):
         self.plugins = plugins >> sm.map(lambda p: (p.name, p)) >> dict
         self.default_plugin = plugins[0] if self.plugins else None
 
+    def _try_query(self, text):
+        """Avoid line editor frozen when key continues pressed."""
+        QTimer.singleShot(0, lambda: self.query(text))
+
     def query(self, text):
         cmd, arg = parse_query(text)
 
         self.cmd = self.default_plugin.name if cmd is None else cmd
         if arg is None:
-            self.popup([])
+            self._try_popup([])
         else:
+            plugin = None
             if cmd is None:
                 if not self.default_plugin is None:
-                    self.popup(self.default_plugin.lit(arg, upper_bound=MAX_LIST_LENGTH))
+                    plugin = self.default_plugin
             else:
                 if cmd in self.plugins:
-                    self.popup(self.plugins[cmd].lit(arg, upper_bound=MAX_LIST_LENGTH))
+                    plugin = self.plugins[cmd]
+            if plugin:
+                ret = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
+                if isinstance(ret, QThread):
+                    # clear previous jobs
+                    for job in self.jobs:
+                        job.stop()
+                    self.jobs = [job for job in self.jobs if not job.finished]
+                    self.jobs.append(ret)
+                    # start this job
+                    ret.set_done_handle(self._job_done)
+                    ret()
+                else:
+                    self._try_popup(ret)
+
+    def _job_done(self, result):
+        self._job_done_signal.emit(result)
 
     def select(self, index):
         cmd = self.cmd
@@ -238,14 +288,18 @@ class Lit(QWidget):
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
+    def _try_popup(self, result):
+        QTimer.singleShot(0, lambda: self.popup(result))
+
     def popup(self, result):
-        self.completer.update(result)
+        with QMutexLocker(self.mutex):
+            self.completer.update(result)
 
     def showEvent(self, e):
         QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
         self.inp.setFocus()
         if not self.completer.popuped:
-            QTimer.singleShot(0, lambda: self.query(self.inp.text()))
+            QTimer.singleShot(0, lambda: self._try_query(self.inp.text()))
         self.super.showEvent(e)
 
     def hideEvent(self, e):
@@ -334,6 +388,7 @@ class Completer(QCompleter):
         else:
             model = QStringListModel()
             model.setStringList(result >> sm.map(str) >> list)
+
         self.setModel(model)
         self.setCompletionPrefix('')
         self.complete()
@@ -468,7 +523,7 @@ class HotkeyThread(QThread):
         # 開始 message pump，等待通知被傳遞
         while self.running:
             win32gui.PumpWaitingMessages()
-            time.sleep(0.04) # 25Hz
+            time.sleep(0.04)  # 25Hz
         win32gui.DestroyWindow(hwnd)
         win32gui.UnregisterClass(wc.lpszClassName, None)
 
