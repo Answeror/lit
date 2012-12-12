@@ -305,19 +305,21 @@ class Lit(QWidget):
             self.completer.update(result)
 
     def showEvent(self, e):
-        QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
+        #QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
         self.inp.setFocus()
         if not self.completer.popuped:
             QTimer.singleShot(0, lambda: self._try_query(self.inp.text()))
         self.super.showEvent(e)
 
     def hideEvent(self, e):
+        # block signals to avoid trigger completer update
         state = self.inp.blockSignals(True)
         try:
             self.inp.setText('')
         finally:
             self.inp.blockSignals(state)
-        self.completer.hide_popup()
+        if self.completer.popuped:
+            self.completer.hide_popup()
         self.super.hideEvent(e)
 
     def closeEvent(self, e):

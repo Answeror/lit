@@ -25,7 +25,9 @@ After install, you may need manually create a shotcut of `lit.exe`.
 
 ### From source
 
-Install PyQt4, cx-Freeze, pywin32 is easy. For stream.py:
+Install PyQt4, cx-Freeze, pywin32 is fairly easy (indeed some pain if you want install them in the virtualenv like me, but it is **possible**).
+
+For stream.py:
 
 ```
 pip install git+https://github.com/Answeror/stream.py.git
@@ -41,11 +43,12 @@ The `msi` installer will be created under `dist` folder.
 
 ## Usage
 
-Use `ALT`+`F` to toggle search box. Search text are make of two parts: command and query, seperated by a space.
+Use `ALT`+`F` to toggle search box. Search text are make of two parts: command and query (optional, some command may haven't query part, like `\exit`), seperated by a space.
 
 Command can be:
 
 * `\r` (i.e. `\run`): run executable under your `PATH`
 * `\g` (i.e. `\go`): task switch
+* `\exit`: as it says
 
 Default mode is `\g`, you can do task switch just without command part.

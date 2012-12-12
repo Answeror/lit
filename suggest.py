@@ -66,7 +66,7 @@ class Suggest(QWidget):
         popup.setWindowFlags(Qt.Popup)
         popup.setFocusPolicy(Qt.NoFocus)
         #popup.setFocusProxy(self.editor)
-        #popup.setMouseTracking(True)
+        popup.setMouseTracking(True)
 
         popup.installEventFilter(self)
 
@@ -94,7 +94,7 @@ class Suggest(QWidget):
                 #QEvent.MouseMove
             ):
                 self.popup.hide()
-                self.editor.setFocus()
+                #self.editor.setFocus()
                 #QApplication.sendEvent(self.editor, e)
                 return True
             elif e.type() == QEvent.KeyPress:
