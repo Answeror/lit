@@ -4,7 +4,19 @@
 
 ## Introduction
 
-Lit is a task switcher and launcher, used to replace `ALT`+`TAB` and `WIN`+`R`. The goal of this project is to make a desktop search platform to make everything searchable, i.e. tasks, executables, filenames, pdf contents and annotations, images, evernote...
+Lit is a task switcher and launcher, used to replace `ALT`+`TAB` and `WIN`+`R`. The goal of this project is to make a desktop search platform and make everything searchable, i.e. tasks, executables, filenames, pdf contents and annotations, images, evernote...
+
+Both task switching and launcher submodule use fuzzy search based on weighted Levenshtein distance.
+
+### Snapshots
+
+**Task switching** using `\g` command or query directly (default mode is `\g`):
+
+![Task switch](http://dl.answeror.com/u/3450602/lit.go.png)\ 
+
+**Launcher** using `\r` command:
+
+![Launcher](http://dl.answeror.com/u/3450602/lit.run.png)\ 
 
 ## Install
 
