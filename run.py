@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-from lit import LitPlugin, LitJob
+from common import LitPlugin, LitJob
 from utils import Query
 import win32api
 from collections import namedtuple
@@ -55,7 +55,13 @@ class Run(LitPlugin):
     def lit(self, query, upper_bound, *args, **kargs):
         return Job(self.d, self.mutex, query, upper_bound)
 
-    def select(self, name):
+    def select(self, content, index):
+        # check content type
+        if not isinstance(content, list):
+            logging.info('wrong content type {}'.format(type(content)))
+            return
+
+        name = content[index.row()]
         if name in self.d:
             # use shell=True to make lnk valid
             #sp.call(self.d[name], shell=True)

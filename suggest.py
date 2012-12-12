@@ -2,29 +2,24 @@
 # -*- coding: utf-8 -*-
 
 
-from PyQt4.QtGui import\
-        QWidget,\
-        QApplication,\
-        QTreeWidget,\
-        QFrame,\
-        QTreeWidgetItem,\
-        QAbstractItemView,\
-        QStringListModel,\
-        QItemSelectionModel,\
-        QListView,\
-        QKeyEvent
-from PyQt4.QtCore import\
-        Qt,\
-        QPoint,\
-        QObject,\
-        pyqtSignal,\
-        pyqtSlot,\
-        QEvent,\
-        QModelIndex,\
-        QTimer,\
-        QThreadPool,\
-        QMetaObject,\
-        QAbstractItemModel
+from PyQt4.QtGui import (
+    QWidget,
+    QApplication,
+    QAbstractItemView,
+    QStringListModel,
+    QItemSelectionModel,
+    QListView,
+    QKeyEvent
+)
+from PyQt4.QtCore import (
+    Qt,
+    QPoint,
+    QObject,
+    pyqtSignal,
+    QEvent,
+    QModelIndex,
+    QAbstractItemModel
+)
 import stream as sm
 
 
@@ -34,9 +29,6 @@ class CenterListView(QListView):
     def __init__(self, parent=None):
         self.super.__init__(parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        #self.setSpacing(2)
-        #self.setItemDelegate(QStyledItemDelegate())
-        #self.setItemDelegate(RowDelegate(self))
 
     @property
     def super(self):
@@ -56,7 +48,7 @@ class Suggest(QWidget):
         self.editor = parent
         self.popup = None
         self.set_popup(CenterListView())
-        #self.editor.installEventFilter(self)
+        self.content = None
 
     def set_popup(self, popup):
         if self.popup:
@@ -183,33 +175,61 @@ class Suggest(QWidget):
     def super(self):
         return super(QWidget, self)
 
+    @property
+    def model(self):
+        return self.popup.model() if self.popup else None
+
+    @model.setter
+    def model(self, value):
+        self.popup.setModel(value)
+
     def hide_popup(self):
         self.popup.hide()
 
-    def update(self, result):
-        if isinstance(result, QAbstractItemModel):
-            model = result
+    def reset(self):
+        """Reset model and hide popup."""
+        self.model = QStringListModel()
+        self.hide_popup()
+
+    def select_first_item(self):
+        first_index = self.popup.model().index(0, 0)
+        self.popup.selectionModel().setCurrentIndex(
+            first_index,
+            QItemSelectionModel.Select | QItemSelectionModel.Rows
+        )
+        self.popup.scrollTo(first_index, QAbstractItemView.PositionAtCenter)
+
+    def _resize_popup(self):
+        h = self.popup.sizeHintForRow(0) * min(7, self.row_count) + 3
+        self.popup.resize(self.editor.width(), h)
+        self.popup.move(self.editor.mapToGlobal(QPoint(0, self.editor.height())))
+
+    @property
+    def row_count(self):
+        return self.model.rowCount(QModelIndex())
+
+    @property
+    def empty(self):
+        return self.row_count == 0
+
+    def update(self, content):
+        # cache content
+        self.content = content
+
+        # make model
+        if isinstance(content, QAbstractItemModel):
+            model = content
         else:
             model = QStringListModel()
-            model.setStringList(result >> sm.map(str) >> list)
+            model.setStringList(content >> sm.map(str) >> list)
 
         self.model = model
-        self.popup.setModel(model)
 
-        row_count = model.rowCount(QModelIndex())
-        if row_count == 0:
+        if self.empty:
             # no suggestion, hide
-            self.popup.hide()
+            self.hide_popup()
         else:
-            h = self.popup.sizeHintForRow(0) * min(7, row_count) + 3
-            self.popup.resize(self.editor.width(), h)
-            self.popup.move(self.editor.mapToGlobal(QPoint(0, self.editor.height())))
             #self.popup.setFocus()
+            self._resize_popup()
+            self.select_first_item()
             self.popup.show()
-
-            first_index = self.popup.model().index(0, 0)
-            self.popup.selectionModel().setCurrentIndex(
-                first_index,
-                QItemSelectionModel.Select | QItemSelectionModel.Rows
-            )
-            self.popup.scrollTo(first_index, QAbstractItemView.PositionAtCenter)

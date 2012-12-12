@@ -25,8 +25,7 @@ from PyQt4.QtGui import (
     QAbstractItemView,
     QListView,
     QItemSelectionModel,
-    QItemDelegate,
-    QStyledItemDelegate
+    QItemDelegate
 )
 from PyQt4.QtCore import (
     Qt,
@@ -44,12 +43,12 @@ Signal = pyqtSignal
 Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
+from common import LitJob
 import stream as sm
 import os
 import re
 import win32gui
 import ctypes
-import windows
 import logging
 import win32con
 import time
@@ -81,59 +80,6 @@ def hwnd(win):
     return winid(win)
 
 
-def _no_impl(name):
-    raise RuntimeError('Method %s not implemented.' % name)
-
-
-class LitPlugin(object):
-
-    def __init__(self):
-        pass
-
-    def lit(self, query):
-        return []
-
-    def act(self):
-        pass
-
-    def select(self, arg):
-        pass
-
-    @property
-    def name(self):
-        _no_impl(self.name.__name__)
-
-
-class LitJob(object):
-    """Time comsuming job."""
-
-    def __init__(self):
-        pass
-
-    def stop(self):
-        pass
-
-    def __call__(self):
-        pass
-
-    def set_done_handle(self, done):
-        pass
-
-    @property
-    def finished(self):
-        _no_impl(self.finished.__name__)
-
-
-class Foo(LitPlugin):
-
-    @property
-    def name(self):
-        return 'foo'
-
-    def lit(self, query):
-        return query
-
-
 def parse_query(text):
     if not text.startswith('\\'):
         return None, text
@@ -148,6 +94,11 @@ class Lit(QWidget):
     def __init__(self, plugins=[]):
         super(Lit, self).__init__()
         lay = QVBoxLayout()
+
+        # spacing of search box
+        lay.setSpacing(0)
+        lay.setMargin(0)
+
         self.inp = Input(self.act, self)
         self.inp.textChanged.connect(self._try_query)
         self.completer = Suggest(self.inp)
@@ -246,12 +197,18 @@ class Lit(QWidget):
         """Avoid line editor frozen when key continues pressed."""
         QTimer.singleShot(0, lambda: self.query(text))
 
+    def _clean_jobs(self):
+        """Stop unfinished jobs, remove finished jobs from job list."""
+        for job in self.jobs:
+            job.stop()
+        self.jobs = [job for job in self.jobs if not job.finished]
+
     def query(self, text):
         cmd, arg = parse_query(text)
 
         self.cmd = self.default_plugin.name if cmd is None else cmd
         if arg is None:
-            self._try_popup([])
+            self._reset_popup()
         else:
             plugin = None
             if cmd is None:
@@ -261,28 +218,24 @@ class Lit(QWidget):
                 if cmd in self.plugins:
                     plugin = self.plugins[cmd]
             if plugin:
-                ret = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
-                # fixme: why LitJob check failed
-                if isinstance(ret, QThread):
-                    # clear previous jobs
-                    for job in self.jobs:
-                        job.stop()
-                    self.jobs = [job for job in self.jobs if not job.finished]
-                    self.jobs.append(ret)
-                    # start this job
-                    ret.set_done_handle(self._job_done)
-                    ret()
-                else:
-                    self._try_popup(ret)
+                job = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
+                assert isinstance(job, LitJob)
+                # rebuild job list
+                self._clean_jobs()
+                self.jobs.append(job)
+                # set finish callback and start this job
+                job.set_done_handle(lambda result: self._job_done(result))
+                job()
 
     def _job_done(self, result):
         self._job_done_signal.emit(result)
 
     def select(self, index):
         cmd = self.cmd
-        text = self.completer.completionModel().data(index, Qt.DisplayRole)
+        #text = self.completer.completionModel().data(index, Qt.DisplayRole)
         self.hide_window()
-        self.plugins[cmd].select(text)
+        assert self.completer.content
+        self.plugins[cmd].select(content=self.completer.content, index=index)
 
     def act(self):
         if self.cmd == 'exit':
@@ -297,12 +250,15 @@ class Lit(QWidget):
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
 
-    def _try_popup(self, result):
-        QTimer.singleShot(0, lambda: self.popup(result))
+    def _try_popup(self, content):
+        QTimer.singleShot(0, lambda: self.popup(content))
 
-    def popup(self, result):
+    def popup(self, content):
         with QMutexLocker(self.mutex):
-            self.completer.update(result)
+            self.completer.update(content)
+
+    def _reset_popup(self):
+        self.completer.reset()
 
     def showEvent(self, e):
         #QTimer.singleShot(0, lambda: windows.goto(hwnd(self)))
