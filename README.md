@@ -31,7 +31,7 @@ Both task switching and launcher submodule use fuzzy search based on weighted Le
 
 ### From binary
 
-Download [v0.1.1](http://dl.answeror.com/u/3450602/lit-0.1.1-win32.msi).
+Download [v0.1.2](http://dl.answeror.com/u/3450602/lit-0.1.2-win32.msi).
 
 After install, you may need manually create a shotcut of `lit.exe`.
 
