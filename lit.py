@@ -255,7 +255,7 @@ class Lit(QWidget):
 
     def popup(self, content):
         with QMutexLocker(self.mutex):
-            self.completer.update(content)
+            self.completer.complete(content)
 
     def _reset_popup(self):
         self.completer.reset()

@@ -3,6 +3,11 @@
 
 
 import uuid
+from qt.QtCore import (
+    QObject,
+    QTimer
+)
+from collections import deque
 
 
 def _no_impl(name):
@@ -52,3 +57,32 @@ class LitPlugin(object):
     @property
     def name(self):
         _no_impl(self.name.__name__)
+
+
+class Worker(QObject):
+
+    def __init__(self):
+        self.super.__init__()
+        self.jobs = deque()
+        self.idle_count = 0
+
+    @property
+    def super(self):
+        return super(Worker, self)
+
+    def do(self, job):
+        self.jobs.append(job)
+
+    def run(self):
+        if self.jobs:
+            job = self.jobs.popleft()
+            job()
+            self.idle_count = 0
+        else:
+            self.idle_count += 1
+
+        # to avoid high CPU
+        if self.idle_count < 1:
+            QTimer.singleShot(0, self.run)
+        else:
+            QTimer.singleShot(100, self.run)

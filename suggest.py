@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from PyQt4.QtGui import (
+from qt.QtGui import (
     QWidget,
     QApplication,
     QAbstractItemView,
@@ -11,8 +11,9 @@ from PyQt4.QtGui import (
     QListView,
     QKeyEvent
 )
-from PyQt4.QtCore import (
+from qt.QtCore import (
     Qt,
+    QTimer,
     QPoint,
     QObject,
     pyqtSignal,
@@ -212,7 +213,7 @@ class Suggest(QWidget):
     def empty(self):
         return self.row_count == 0
 
-    def update(self, content):
+    def complete(self, content):
         # cache content
         self.content = content
 
@@ -233,3 +234,14 @@ class Suggest(QWidget):
             self._resize_popup()
             self.select_first_item()
             self.popup.show()
+            #self._continues_update()
+
+    def _update_popup(self):
+        model = self.model
+        self.model = None
+        self.model = model
+
+    def _continues_update(self):
+        if self.popuped:
+            self._update_popup()
+            QTimer.singleShot(1000, self._continues_update)

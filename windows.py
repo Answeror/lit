@@ -204,10 +204,8 @@ def get_hicon(hWin):
         hIcon = win32gui.LoadIcon(win32con.NULL, MAKEINTRESOURCE(win32con.IDI_APPLICATION))
     return hIcon
 
-def get_window_icon(hwnd):
-    """Return QPixmap."""
-    #hicon = win32gui.GetClassLong(hwnd, win32con.GCL_HICON)
-    hicon = get_hicon(hwnd)
+
+def make_qicon(hicon):
     width = 16
     height = 16
     if hicon:
@@ -216,6 +214,22 @@ def get_window_icon(hwnd):
         ret = QPixmap(width, height)
         ret.fill(Qt.transparent)
         return ret
+
+
+#def get_file_icon(path):
+    #i = win32gui.ExtractIconEx(path, 0)[0]
+    ##return win32gui.LoadIcon(i, 0)
+    #return i
+
+
+from geticon import get_file_icon
+
+
+def get_window_icon(hwnd):
+    """Return QPixmap."""
+    #hicon = win32gui.GetClassLong(hwnd, win32con.GCL_HICON)
+    hicon = get_hicon(hwnd)
+    return make_qicon(hicon)
     #info = win32gui.GetIconInfo(hicon)
     #try:
         #return QPixmap.fromWinHBITMAP(info[4])

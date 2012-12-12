@@ -89,7 +89,7 @@ class QtUiBuild(Command, PyQt4UiBuild):
 
 QtUiBuild.ui_files = []
 QtUiBuild.qrc_files = [os.path.join(dir, f) \
-                for dir in ['lit'] \
+                for dir in ['.'] \
                 for f in os.listdir(dir) if f.endswith('.qrc')]
 
 

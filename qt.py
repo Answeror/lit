@@ -7,6 +7,7 @@ Do not use this if you need PyQt with the old QString/QVariant API.
 """
 
 import os
+import sys
 
 # Available APIs.
 QT_API_PYQT = 'pyqt'
@@ -28,13 +29,13 @@ if QT_API is None:
         if PySide.__version__ < '1.0.3':
             # old PySide, fallback on PyQt
             raise ImportError
-        from PySide import QtCore, QtGui, QtSvg
+        from PySide import QtCore, QtGui
         QT_API = QT_API_PYSIDE
     except ImportError:
         try:
             prepare_pyqt4()
             import PyQt4
-            from PyQt4 import QtCore, QtGui, QtSvg
+            from PyQt4 import QtCore, QtGui
             if QtCore.PYQT_VERSION_STR < '4.7':
                 # PyQt 4.6 has issues with null strings returning as None
                 raise ImportError
@@ -48,7 +49,7 @@ elif QT_API == QT_API_PYQT:
 
 # Now peform the imports.
 if QT_API == QT_API_PYQT:
-    from PyQt4 import QtCore, QtGui, QtSvg
+    from PyQt4 import QtCore, QtGui
     if QtCore.PYQT_VERSION_STR < '4.7':
         raise ImportError("IPython requires PyQt4 >= 4.7, found %s"%QtCore.PYQT_VERSION_STR)
 
@@ -60,8 +61,11 @@ elif QT_API == QT_API_PYSIDE:
     import PySide
     if PySide.__version__ < '1.0.3':
         raise ImportError("IPython requires PySide >= 1.0.3, found %s"%PySide.__version__)
-    from PySide import QtCore, QtGui, QtSvg
+    from PySide import QtCore, QtGui
 
 else:
     raise RuntimeError('Invalid Qt API %r, valid values are: %r or %r' %
                        (QT_API, QT_API_PYQT, QT_API_PYSIDE))
+
+sys.modules['qt.QtCore'] = QtCore
+sys.modules['qt.QtGui'] = QtGui
