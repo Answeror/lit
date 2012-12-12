@@ -11,7 +11,7 @@ packages = []
 
 setup(
     name='lit',
-    version='0.1.1',
+    version='0.1.2',
     cmdclass=cmds,
     options={
         'build_exe': {
