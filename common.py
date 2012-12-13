@@ -5,7 +5,8 @@
 import uuid
 from qt.QtCore import (
     QObject,
-    QTimer
+    QTimer,
+    QTime
 )
 from collections import deque
 
@@ -65,6 +66,7 @@ class Worker(QObject):
         self.super.__init__()
         self.jobs = deque()
         self.idle_count = 0
+        self.timer = QTime()
 
     @property
     def super(self):
@@ -74,6 +76,7 @@ class Worker(QObject):
         self.jobs.append(job)
 
     def run(self):
+        self.timer.restart()
         if self.jobs:
             job = self.jobs.popleft()
             job()
@@ -83,6 +86,7 @@ class Worker(QObject):
 
         # to avoid high CPU
         if self.idle_count < 1:
-            QTimer.singleShot(0, self.run)
+            # TODO: maybe check CPU here?
+            QTimer.singleShot(self.timer.elapsed(), self.run)
         else:
             QTimer.singleShot(100, self.run)
