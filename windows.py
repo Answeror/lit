@@ -30,7 +30,9 @@ from ctypes.wintypes import (
     LONG,
     WORD,
     BYTE,
-    RECT
+    RECT,
+    UINT,
+    ATOM
 )
 from pywingui.winuser import MAKEINTRESOURCE
 
@@ -163,7 +165,7 @@ def is_alt_tab_window(hwnd):
 
     See http://stackoverflow.com/a/7292674/238472 for details.
     """
-    if not win32gui.IsWindowVisible(hwnd):
+    if not win32gui.IsWindowVisible(hwnd) or not win32gui.IsWindow(hwnd):
         return False
 
     hwnd_walk = win32con.NULL
@@ -189,7 +191,20 @@ def is_alt_tab_window(hwnd):
     if win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) & win32con.WS_EX_TOOLWINDOW:
         return False
 
+    pwi = WINDOWINFO()
+    windll.user32.GetWindowInfo(hwnd, byref(pwi))
+    # A top-level window created with this style does not become the foreground
+    # window when the user clicks it. The system does not bring this window to
+    # the foreground when the user minimizes or closes the foreground window.
+    # The window does not appear on the taskbar by default.
+    if pwi.dwExStyle & win32con.WS_EX_NOACTIVATE:
+        return False
+
     return True
+
+
+def window_title(hwnd):
+    return win32gui.GetWindowText(hwnd)
 
 
 def get_hicon(hWin):
@@ -388,3 +403,25 @@ def fromWinHICON(icon):
     win32gui.DeleteObject(winBitmap)
     win32gui.DeleteDC(hdc)
     return QPixmap.fromImage(image)
+
+
+class tagWINDOWINFO(Structure):
+
+    def __str__(self):
+        return '\n'.join([key + ':' + str(getattr(self, key)) for key, value in self._fields_])
+
+tagWINDOWINFO._fields_ = [
+    ('cbSize', DWORD),
+    ('rcWindow', RECT),
+    ('rcClient', RECT),
+    ('dwStyle', DWORD),
+    ('dwExStyle', DWORD),
+    ('dwWindowStatus', DWORD),
+    ('cxWindowBorders', UINT),
+    ('cyWindowBorders', UINT),
+    ('atomWindowType', ATOM),
+    ('wCreatorVersion', WORD),
+]
+WINDOWINFO = tagWINDOWINFO
+LPWINDOWINFO = POINTER(tagWINDOWINFO)
+PWINDOWINFO = POINTER(tagWINDOWINFO)
