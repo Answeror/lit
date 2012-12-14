@@ -24,20 +24,32 @@ from qt.QtCore import (
 import stream as sm
 
 
+MAX_ITEM = 7
+
+
 class CenterListView(QListView):
     """Always scroll to center."""
 
     def __init__(self, parent=None):
-        self.super.__init__(parent)
+        super(CenterListView, self).__init__(parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-
-    @property
-    def super(self):
-        return super(CenterListView, self)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
     def scrollTo(self, index, _):
         """Always scroll to center."""
-        self.super.scrollTo(index, QAbstractItemView.PositionAtCenter)
+        super(CenterListView, self).scrollTo(index, QAbstractItemView.PositionAtCenter)
+
+    def showEvent(self, e):
+        QTimer.singleShot(0, self._adjust_popup_height)
+        super(CenterListView, self).showEvent(e)
+
+    def _adjust_popup_height(self):
+        if self.isVisible():
+            if self.model().rowCount(QModelIndex()) <= MAX_ITEM:
+                vsb = self.verticalScrollBar()
+                if vsb and vsb.isVisible():
+                    self.resize(self.width(), self.height() + 1)
+                    QTimer.singleShot(0, self._adjust_popup_height)
 
 
 class Suggest(QWidget):
@@ -201,8 +213,11 @@ class Suggest(QWidget):
         self.popup.scrollTo(first_index, QAbstractItemView.PositionAtCenter)
 
     def _resize_popup(self):
-        h = self.popup.sizeHintForRow(0) * min(7, self.row_count) + 3
+        h = self.popup.sizeHintForRow(0) * min(MAX_ITEM, self.row_count)
         self.popup.resize(self.editor.width(), h)
+        #hsb = self.popup.horizontalScrollBar()
+        #if hsb and hsb.isVisible():
+            #h += hsb.sizeHint().height()
         self.popup.move(self.editor.mapToGlobal(QPoint(0, self.editor.height())))
 
     @property

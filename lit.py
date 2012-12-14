@@ -192,6 +192,15 @@ class Lit(QWidget):
     def _install_plugins(self, plugins):
         self.plugins = plugins >> sm.map(lambda p: (p.name, p)) >> dict
         self.default_plugin = plugins[0] if self.plugins else None
+        self._setup_plugins()
+
+    def _setup_plugins(self):
+        for p in self.plugins.values():
+            p.setup()
+
+    def _teardown_plugins(self):
+        for p in self.plugins.values():
+            p.teardown()
 
     def _try_query(self, text):
         """Avoid line editor frozen when key continues pressed."""
@@ -246,6 +255,7 @@ class Lit(QWidget):
                 #self.event_processor.wait()
             self.hotkey_thread.running = False
             self.hotkey_thread.wait()
+            self._teardown_plugins()
             QApplication.quit()
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
@@ -529,7 +539,8 @@ if __name__ == '__main__':
 
         from go import Go
         from run import Run
-        lit = Lit([Go(), Run()])
+        from recent import Recent
+        lit = Lit([Go(), Run(), Recent()])
         lit.show()
 
         #return app.exec_()
