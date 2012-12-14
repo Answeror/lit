@@ -22,7 +22,11 @@ class Recent(Files):
         self.watcher = self.mrufs.add_watcher(lambda e: self._update_path())
 
     def _update_path(self):
-        self._paths = [os.path.join(self.mru_path, f) for f in self.mrufs.listdir()]
+        self._paths = sorted(
+            [os.path.join(self.mru_path, f) for f in self.mrufs.listdir()],
+            key=os.path.getmtime,
+            reverse=True
+        )
         self.path_list_changed()
 
     def teardown(self):

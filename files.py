@@ -35,12 +35,13 @@ class Runnable(QObject):
 
     icon_loaded = Signal()
 
-    def __init__(self, name, path, query, worker):
+    def __init__(self, name, path, query, worker, order):
         super(Runnable, self).__init__()
         self.name = name
         self.path = path
         self.query = query
         self.worker = worker
+        self.order = order
         self._icon = None
 
     @property
@@ -102,14 +103,15 @@ class Files(LitPlugin):
         """Update runnable list."""
         with QMutexLocker(self.mutex):
             runnables = []
-            for path in self.paths:
+            for order, path in enumerate(self.paths):
                 name, _ = os.path.splitext(os.path.basename(path))
                 if name in self.d:
                     runnables.append((name, Runnable(
                         name=name,
                         path=path,
                         query=self.d[name].query,
-                        worker=self.worker
+                        worker=self.worker,
+                        order=order
                     )))
                 else:
                     runnables.append((name, Runnable(
@@ -122,7 +124,8 @@ class Files(LitPlugin):
                             substitution_cost=100,
                             transposition_cost=10
                         ),
-                        worker=self.worker
+                        worker=self.worker,
+                        order=order
                     )))
             self.d = dict(runnables)
 
@@ -168,11 +171,14 @@ class Job(LitJob, QThread):
             for runnable in self.d.values():
                 runnable.query.update(self.query.lower())
 
-            def f(executable):
+            def f(runnable):
                 """Don't calculate editing distance if job stopped."""
                 if self.stopped:
                     return 0
-                return executable.query.distance_to(executable.name.lower())
+                elif not self.query:
+                    return runnable.order
+                else:
+                    return runnable.query.distance_to(runnable.name.lower())
 
             model = RunnableModel(sorted(self.d.values(), key=f)[:self.upper_bound])
 
