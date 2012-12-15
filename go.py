@@ -10,7 +10,6 @@ import stream as sm
 from PyQt4.QtCore import (
     Qt,
     QAbstractListModel,
-    QThread,
     QMutex,
     QMutexLocker
 )
@@ -102,11 +101,10 @@ class Go(LitPlugin):
         del self.tasks[content.data(index, WindowModel.HWND_ROLE)]
 
 
-class Job(LitJob, QThread):
+class Job(LitJob):
 
     def __init__(self, go, query, upper_bound):
         LitJob.__init__(self)
-        QThread.__init__(self)
         self.go = go
         self.done = None
         self.stopped = False
@@ -115,6 +113,10 @@ class Job(LitJob, QThread):
 
     def stop(self):
         self.stopped = True
+
+    @property
+    def main(self):
+        return True
 
     def sorted_active_runnable(self, query, hwnds):
         with QMutexLocker(self.go.mutex):
@@ -134,7 +136,7 @@ class Job(LitJob, QThread):
 
             return sorted(active_tasks, key=f)
 
-    def run(self):
+    def __call__(self):
         model = WindowModel(
             self.sorted_active_runnable(self.query, _top_level_windows())\
             >> sm.map(lambda t: WindowInfo(
@@ -144,18 +146,7 @@ class Job(LitJob, QThread):
             ))\
             >> sm.item[:self.upper_bound]
         )
-        if self.done and not self.stopped:
-            self.done(model)
-
-    def __call__(self):
-        self.run()
-
-    def set_done_handle(self, done):
-        self.done = done
-
-    @property
-    def finished(self):
-        return self.isFinished()
+        return None if self.stopped else model
 
 
 def _top_level_windows():

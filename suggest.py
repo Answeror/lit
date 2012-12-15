@@ -229,6 +229,9 @@ class Suggest(QWidget):
         return self.row_count == 0
 
     def complete(self, content):
+        if content is None:
+            content = []
+
         # cache content
         self.content = content
 

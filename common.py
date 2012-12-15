@@ -6,7 +6,9 @@ import uuid
 from qt.QtCore import (
     QObject,
     QTimer,
-    QTime
+    QTime,
+    Signal,
+    QThread
 )
 from collections import deque
 
@@ -29,12 +31,10 @@ class LitJob(object):
     def __call__(self):
         pass
 
-    def set_done_handle(self, done):
-        pass
-
     @property
-    def finished(self):
-        _no_impl(self.finished.__name__)
+    def main(self):
+        """Whether need to be run in main (GUI) thread."""
+        return False
 
     @property
     def id(self):
@@ -69,14 +69,10 @@ class LitPlugin(object):
 class Worker(QObject):
 
     def __init__(self):
-        self.super.__init__()
+        QObject.__init__(self)
         self.jobs = deque()
         self.idle_count = 0
         self.timer = QTime()
-
-    @property
-    def super(self):
-        return super(Worker, self)
 
     def do(self, job):
         self.jobs.append(job)
@@ -96,3 +92,25 @@ class Worker(QObject):
             QTimer.singleShot(self.timer.elapsed(), self.run)
         else:
             QTimer.singleShot(100, self.run)
+
+
+class AsyncStoppableJob(QThread):
+
+    done = Signal(object)
+
+    def __init__(self, job):
+        QThread.__init__(self)
+        self.job = job
+
+    def __call__(self):
+        self.start()
+
+    def run(self):
+        self.done.emit(self.job())
+
+    def stop(self):
+        self.job.stop()
+
+    @property
+    def finished(self):
+        return self.isFinished()

@@ -5,11 +5,11 @@ import os
 from common import LitPlugin, LitJob, Worker
 from utils import Query
 import win32api
-from PyQt4.QtGui import (
+from qt.QtGui import (
     QFileIconProvider,
     QIcon
 )
-from PyQt4.QtCore import (
+from qt.QtCore import (
     Qt,
     QThread,
     QMutex,
@@ -69,7 +69,11 @@ class RunnableModel(QAbstractListModel):
         self.items = items
         for i, item in enumerate(self.items):
             index = self.index(i, 0)
-            item.icon_loaded.connect(lambda: self.dataChanged.emit(index, index))
+            # must use Qt.DirectConnection here, but why?
+            item.icon_loaded.connect(
+                lambda: self.dataChanged.emit(index, index),
+                Qt.DirectConnection
+            )
 
     def rowCount(self, parent):
         return len(self.items)
@@ -150,11 +154,10 @@ class Files(LitPlugin):
                 logging.error(e)
 
 
-class Job(LitJob, QThread):
+class Job(LitJob):
 
     def __init__(self, d, mutex, query, upper_bound):
         LitJob.__init__(self)
-        QThread.__init__(self)
         self.done = None
         self.stopped = False
         self.d = d
@@ -165,7 +168,7 @@ class Job(LitJob, QThread):
     def stop(self):
         self.stopped = True
 
-    def run(self):
+    def __call__(self):
         """Use mutex to protect self.d."""
         with QMutexLocker(self.mutex):
             for runnable in self.d.values():
@@ -181,16 +184,4 @@ class Job(LitJob, QThread):
                     return runnable.query.distance_to(runnable.name.lower())
 
             model = RunnableModel(sorted(self.d.values(), key=f)[:self.upper_bound])
-
-        if self.done and not self.stopped:
-            self.done(model)
-
-    def __call__(self):
-        self.run()
-
-    def set_done_handle(self, done):
-        self.done = done
-
-    @property
-    def finished(self):
-        return self.isFinished()
+            return None if self.stopped else model

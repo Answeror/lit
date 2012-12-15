@@ -43,7 +43,7 @@ Signal = pyqtSignal
 Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
-from common import LitJob
+from common import LitJob, AsyncStoppableJob
 import stream as sm
 import os
 import re
@@ -89,8 +89,6 @@ def parse_query(text):
 
 class Lit(QWidget):
 
-    _job_done_signal = Signal(object)
-
     def __init__(self, plugins=[]):
         super(Lit, self).__init__()
         lay = QVBoxLayout()
@@ -116,7 +114,6 @@ class Lit(QWidget):
 
         self.mutex = QMutex()
 
-        self._job_done_signal.connect(self._try_popup)
         self.jobs = []
 
         self.hotkey_thread = HotkeyThread()
@@ -229,15 +226,18 @@ class Lit(QWidget):
             if plugin:
                 job = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
                 assert isinstance(job, LitJob)
-                # rebuild job list
-                self._clean_jobs()
-                self.jobs.append(job)
-                # set finish callback and start this job
-                job.set_done_handle(lambda result: self._job_done(result))
-                job()
 
-    def _job_done(self, result):
-        self._job_done_signal.emit(result)
+                if job.main:
+                    self._try_popup(job())
+                else:
+                    # make sync job
+                    job = AsyncStoppableJob(job)
+                    # rebuild job list
+                    self._clean_jobs()
+                    self.jobs.append(job)
+                    # set finish callback and start this job
+                    job.done.connect(self._try_popup)
+                    job()
 
     def select(self, index):
         cmd = self.cmd
