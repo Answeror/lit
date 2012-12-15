@@ -11,6 +11,7 @@ from qt.QtCore import (
     QThread
 )
 from collections import deque
+import logging
 
 
 def _no_impl(name):
@@ -25,8 +26,13 @@ class LitJob(object):
         # see <http://goo.gl/JHrfc> for reason
         self._id = uuid.uuid4()
 
-    def stop(self):
-        pass
+    @property
+    def stoppable(self):
+        return False
+
+    @property
+    def finished(self):
+        _no_impl('finished')
 
     def __call__(self):
         pass
@@ -63,7 +69,7 @@ class LitPlugin(object):
 
     @property
     def name(self):
-        _no_impl(self.name.__name__)
+        _no_impl('name')
 
 
 class Worker(QObject):
@@ -94,7 +100,7 @@ class Worker(QObject):
             QTimer.singleShot(100, self.run)
 
 
-class AsyncStoppableJob(QThread):
+class AsyncJob(QThread):
 
     done = Signal(object)
 
@@ -106,14 +112,21 @@ class AsyncStoppableJob(QThread):
         self.start()
 
     def run(self):
-        ret = self.job()
-        # do not call done if job been stpped
-        # to prevent popup flicker
-        if not self.job.stopped:
-            self.done.emit(ret)
+        try:
+            ret = self.job()
+            # do not call done if job been stpped
+            # to prevent popup flicker
+            if self.job.finished:
+                self.done.emit(ret)
+        except Exception as e:
+            logging.error(e)
 
-    def stop(self):
-        self.job.stop()
+    def try_stop(self):
+        if self.job.stoppable:
+            try:
+                self.job.stop()
+            except Exception as e:
+                logging.error(e)
 
     @property
     def finished(self):

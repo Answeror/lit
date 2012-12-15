@@ -110,9 +110,14 @@ class Job(LitJob):
         self.stopped = False
         self.query = query
         self.upper_bound = upper_bound
+        self._finished = False
 
     def stop(self):
         self.stopped = True
+
+    @property
+    def finished(self):
+        return self._finished
 
     @property
     def main(self):
@@ -146,6 +151,7 @@ class Job(LitJob):
             ))\
             >> sm.item[:self.upper_bound]
         )
+        self._finished = not self.stopped
         return None if self.stopped else model
 
 

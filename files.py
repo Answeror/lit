@@ -164,9 +164,14 @@ class Job(LitJob):
         self.mutex = mutex
         self.query = query
         self.upper_bound = upper_bound
+        self._finished = False
 
     def stop(self):
         self.stopped = True
+
+    @property
+    def finished(self):
+        return self._finished
 
     def __call__(self):
         """Use mutex to protect self.d."""
@@ -184,4 +189,5 @@ class Job(LitJob):
                     return runnable.query.distance_to(runnable.name.lower())
 
             model = RunnableModel(sorted(self.d.values(), key=f)[:self.upper_bound])
+            self._finished = not self.stopped
             return None if self.stopped else model

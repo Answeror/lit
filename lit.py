@@ -43,7 +43,7 @@ Signal = pyqtSignal
 Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
-from common import LitJob, AsyncStoppableJob
+from common import LitJob, AsyncJob
 import stream as sm
 import os
 import re
@@ -206,7 +206,7 @@ class Lit(QWidget):
     def _clean_jobs(self):
         """Stop unfinished jobs, remove finished jobs from job list."""
         for job in self.jobs:
-            job.stop()
+            job.try_stop()
         self.jobs = [job for job in self.jobs if not job.finished]
 
     def query(self, text):
@@ -231,7 +231,7 @@ class Lit(QWidget):
                     self._try_popup(job())
                 else:
                     # make sync job
-                    job = AsyncStoppableJob(job)
+                    job = AsyncJob(job)
                     # rebuild job list
                     self._clean_jobs()
                     self.jobs.append(job)
@@ -542,7 +542,8 @@ if __name__ == '__main__':
         from go import Go
         from run import Run
         from recent import Recent
-        lit = Lit([Go(), Run(), Recent()])
+        from iciba import Iciba
+        lit = Lit([Go(), Run(), Recent(), Iciba()])
         lit.show()
 
         #return app.exec_()
