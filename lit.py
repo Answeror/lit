@@ -261,7 +261,9 @@ class Lit(QWidget):
             self.plugins[self.cmd].act()
 
     def _try_popup(self, content):
-        QTimer.singleShot(0, lambda: self.popup(content))
+        # don't show popup if search box is hidden
+        if self.isVisible():
+            QTimer.singleShot(0, lambda: self.popup(content))
 
     def popup(self, content):
         with QMutexLocker(self.mutex):
