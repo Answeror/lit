@@ -106,7 +106,11 @@ class AsyncStoppableJob(QThread):
         self.start()
 
     def run(self):
-        self.done.emit(self.job())
+        ret = self.job()
+        # do not call done if job been stpped
+        # to prevent popup flicker
+        if not self.job.stopped:
+            self.done.emit(ret)
 
     def stop(self):
         self.job.stop()

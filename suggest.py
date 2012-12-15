@@ -230,6 +230,7 @@ class Suggest(QWidget):
 
     def complete(self, content):
         if content is None:
+            logging.debug('Content should not be None...')
             content = []
 
         # cache content
