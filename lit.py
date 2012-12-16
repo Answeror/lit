@@ -543,7 +543,8 @@ if __name__ == '__main__':
         from run import Run
         from recent import Recent
         from iciba import Iciba
-        lit = Lit([Go(), Run(), Recent(), Iciba()])
+        from f import F
+        lit = Lit([Go(), Run(), Recent(), Iciba(), F()])
         lit.show()
 
         #return app.exec_()
