@@ -57,9 +57,7 @@ class Task(object):
 
     @property
     def name(self):
-        if not hasattr(self, '_name'):
-            self._name = _window_title(self.hwnd)
-        return self._name
+        return _window_title(self.hwnd)
 
     @property
     def icon(self):
