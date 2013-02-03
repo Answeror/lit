@@ -90,6 +90,13 @@ def SetForegroundWindowInternal(hWnd):
         AttachThreadInput(dwThisTID, dwCurrTID, FALSE)
 
 
+def get_app_path(hwnd):
+    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+    handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
+    exe = win32process.GetModuleFileNameEx(handle, 0)
+    return exe
+
+
 def goto(hwnd):
     #_, pid = win32process.GetWindowThreadProcessId(hwnd)
     #shell = win32com.client.Dispatch('WScript.Shell')
