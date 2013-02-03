@@ -41,6 +41,14 @@ class Task(object):
         return '%s (%s)' % (shortname, self.filename)
 
     @property
+    def title(self):
+        return self.name
+
+    @property
+    def fullname(self):
+        return self.title + self.filename
+
+    @property
     def filename(self):
         if not hasattr(self, '_filename'):
             path = winutils.get_app_path(self.hwnd)
@@ -173,7 +181,7 @@ class Job(LitJob):
             if not query:
                 return sorted(active_tasks, key=lambda t: t.usetime, reverse=True)
 
-            titles = [task.filename.lower() for task in active_tasks]
+            titles = [task.fullname.lower() for task in active_tasks]
 
             def f(task, title):
                 """Don't calculate editing distance if job stopped."""
