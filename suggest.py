@@ -8,7 +8,7 @@ from qt.QtGui import (
     QAbstractItemView,
     QStringListModel,
     QItemSelectionModel,
-    QListView,
+    QTreeView,
     QKeyEvent
 )
 from qt.QtCore import (
@@ -27,13 +27,15 @@ import stream as sm
 MAX_ITEM = 7
 
 
-class CenterListView(QListView):
+class CenterListView(QTreeView):
     """Always scroll to center."""
 
     def __init__(self, parent=None):
         super(CenterListView, self).__init__(parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setRootIsDecorated(False)
+        self.setHeaderHidden(True)
 
     def scrollTo(self, index, _):
         """Always scroll to center."""

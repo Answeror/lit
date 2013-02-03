@@ -13,14 +13,51 @@ from PyQt4.QtCore import (
     QMutex,
     QMutexLocker
 )
-from collections import namedtuple
 import itertools
 import logging
 from lcs import lcs
+import os
 
 
-Task = namedtuple('Task', 'hwnd query usetime')
-WindowInfo = namedtuple('WindowInfo', 'name, hwnd, icon')
+NAME_LIMIT = 42
+
+
+class Task(object):
+
+    def __init__(self, hwnd, query, usetime):
+        self.hwnd = hwnd
+        self.query = query
+        self.usetime = usetime
+
+    def use(self):
+        self.usetime = datetime.now()
+
+    @property
+    def digest(self):
+        if len(self.name) > NAME_LIMIT:
+            shortname = self.name[:NAME_LIMIT - 3] + '...'
+        else:
+            shortname = self.name
+        return '%s (%s)' % (shortname, self.filename)
+
+    @property
+    def filename(self):
+        if not hasattr(self, '_filename'):
+            path = winutils.get_app_path(self.hwnd)
+            self._filename = os.path.basename(path)
+        return self._filename
+
+    @property
+    def name(self):
+        if not hasattr(self, '_name'):
+            self._name = _window_title(self.hwnd)
+        return self._name
+
+    @property
+    def icon(self):
+        if not hasattr(self, '_icon'):
+            self._icon = winutils.get_window_icon(self.hwnd)
+        return self._icon
 
 
 class WindowModel(QAbstractListModel):
@@ -48,7 +85,7 @@ class WindowModel(QAbstractListModel):
         if role == Qt.TextAlignmentRole:
             return int(Qt.AlignLeft | Qt.AlignVCenter)
         elif role == Qt.DisplayRole:
-            return self.items[index.row()].name
+            return self.items[index.row()].digest
         elif role == Qt.DecorationRole:
             return self.items[index.row()].icon
         elif role == Qt.UserRole:
@@ -97,6 +134,7 @@ class Go(LitPlugin):
             if content.data(index, WindowModel.HWND_ROLE) == hwnd:
                 self._refresh_tasks([hwnd])
                 winutils.goto(hwnd=hwnd)
+                self.tasks[hwnd].use()
                 return
 
         # remove invalid tasks
@@ -135,7 +173,7 @@ class Job(LitJob):
             if not query:
                 return sorted(active_tasks, key=lambda t: t.usetime, reverse=True)
 
-            titles = [_window_title(task.hwnd).lower() for task in active_tasks]
+            titles = [task.filename.lower() for task in active_tasks]
 
             def f(task, title):
                 """Don't calculate editing distance if job stopped."""
@@ -154,13 +192,10 @@ class Job(LitJob):
 
     def __call__(self):
         model = WindowModel(
-            self.sorted_active_runnable(self.query, _top_level_windows())
-            >> sm.map(lambda t: WindowInfo(
-                hwnd=t.hwnd,
-                name=_window_title(t.hwnd),
-                icon=winutils.get_window_icon(t.hwnd)
-            ))
-            >> sm.item[:self.upper_bound]
+            self.sorted_active_runnable(
+                self.query,
+                _top_level_windows()
+            )[:self.upper_bound]
         )
         self._finished = not self.stopped
         return None if self.stopped else model
