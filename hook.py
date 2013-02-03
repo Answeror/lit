@@ -50,7 +50,8 @@ class KeyboardHook(object):
             return
         while self.kbHook is not None:
             win32gui.PumpWaitingMessages()
-            time.sleep(0.04)  # 25Hz
+            #time.sleep(0.04)  # 25Hz
+            time.sleep(0.001) # prevent delay when hold press
 
     def uninstallHook(self):
         if self.kbHook is None:
