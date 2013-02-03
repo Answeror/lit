@@ -162,7 +162,7 @@ class Lit(QWidget):
         self._move_to_center()
         self.super.resizeEvent(e)
 
-    def handle_hotkey(self, key):
+    def handle_hotkey(self):
         self.toggle_visibility()
 
     def toggle_visibility(self):
@@ -253,7 +253,7 @@ class Lit(QWidget):
                 #self.event_processor.running = False
                 #self.sema.release()
                 #self.event_processor.wait()
-            self.hotkey_thread.running = False
+            self.hotkey_thread.stop()
             self.hotkey_thread.wait()
             self._teardown_plugins()
             QApplication.quit()
@@ -473,49 +473,21 @@ class Application(QApplication):
 class HotkeyThread(QThread):
     """http://evenrain.com/pyside-detect-usb-device-plugin-and-remove/"""
 
-    fire = Signal(int)
+    fire = Signal()
 
     def __init__(self):
         QThread.__init__(self)
-        self.running = True
+        from hotkey import Hotkey
+        self.hotkey = Hotkey(self.handle_hotkey)
 
-    @property
-    def super(self):
-        return super(HotkeyThread, self)
+    def handle_hotkey(self):
+        self.fire.emit()
 
-    def handle_hotkey(self, hwnd, msg, wp, lp):
-        logging.info('fire')
-        self.fire.emit(int(wp))
-        return True
+    def stop(self):
+        self.hotkey.stop()
 
     def run(self):
-        wc = win32gui.WNDCLASS()
-        wc.lpszClassName = 'test_devicenotify'
-        wc.style = win32con.CS_GLOBALCLASS | win32con.CS_VREDRAW | win32con.CS_HREDRAW
-        wc.hbrBackground = win32con.COLOR_WINDOW + 1
-        wc.lpfnWndProc = {win32con.WM_HOTKEY: self.handle_hotkey}
-        win32gui.RegisterClass(wc)
-
-        # 產生一個不可見的視窗
-        hwnd = win32gui.CreateWindow(wc.lpszClassName,
-            'Fake window to handle lit hotkey',
-            win32con.WS_CAPTION,
-            0, 0, 1, 1, 0, 0, 0, None)
-
-        if not ctypes.windll.user32.RegisterHotKey(
-            hwnd,
-            42,
-            win32con.MOD_ALT,
-            0x46
-        ):
-            logging.warning('ALT+F is already registered by others.')
-
-        # 開始 message pump，等待通知被傳遞
-        while self.running:
-            win32gui.PumpWaitingMessages()
-            time.sleep(0.04)  # 25Hz
-        win32gui.DestroyWindow(hwnd)
-        win32gui.UnregisterClass(wc.lpszClassName, None)
+        self.hotkey.start()
 
 
 if __name__ == '__main__':
@@ -543,8 +515,8 @@ if __name__ == '__main__':
         from run import Run
         from recent import Recent
         from iciba import Iciba
-        from f import F
-        lit = Lit([Go(), Run(), Recent(), Iciba(), F()])
+        #from f import F
+        lit = Lit([Go(), Run(), Recent(), Iciba()])
         lit.show()
 
         #return app.exec_()

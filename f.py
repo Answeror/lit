@@ -27,7 +27,7 @@ import stream as sm
 
 icon_provider = QFileIconProvider()
 
-ROOT = r'E:\doc'
+ROOT = r'C:\windows'
 
 
 def _file_icon(path):
@@ -118,7 +118,8 @@ class F(LitPlugin):
             if relpath != '.':
                 for name in relpath.split(os.sep):
                     parent = parent[name]
-            for name in dirnames >> sm.append(filenames):
+            #for name in dirnames >> sm.append(filenames):
+            for name in dirnames:
                 parent[name]
 
         self.tree = TreeQuery(
@@ -129,6 +130,8 @@ class F(LitPlugin):
             substitution_cost=100,
             transposition_cost=10
         )
+
+        print(len(self.tree.nodes))
 
     @property
     def name(self):
@@ -176,10 +179,14 @@ class Job(LitJob):
         """Use mutex to protect self.d."""
         try:
             with QMutexLocker(self.master.mutex):
-                for node in self.master.tree.nodes:
-                    if not self.stopped:
-                        node.update(self.master.tree.query, self.query)
-                        self.master.tree.query = self.query
+                #t = QTime()
+                #t.start()
+                #for node in self.master.tree.nodes:
+                    #if not self.stopped:
+                        #node.update(self.master.tree.query, self.query)
+                        #self.master.tree.query = self.query
+                self.master.tree.update(self.query)
+                #print(t.elapsed())
 
                 nodes = sorted(self.master.tree.nodes, key=lambda node: node())\
                         >> sm.map(lambda node: Runnable(node, self.master.worker))\

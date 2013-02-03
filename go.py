@@ -14,7 +14,9 @@ from PyQt4.QtCore import (
     QMutexLocker
 )
 from collections import namedtuple
+import itertools
 import logging
+from lcs import lcs
 
 
 Task = namedtuple('Task', 'hwnd query usetime')
@@ -133,22 +135,31 @@ class Job(LitJob):
             if not query:
                 return sorted(active_tasks, key=lambda t: t.usetime, reverse=True)
 
-            def f(task):
+            titles = [_window_title(task.hwnd).lower() for task in active_tasks]
+
+            def f(task, title):
                 """Don't calculate editing distance if job stopped."""
                 if self.stopped:
                     return 0
-                return task.query.distance_to(_window_title(task.hwnd).lower())
+                return task.query.distance_to(title)
 
-            return sorted(active_tasks, key=f)
+            ds = [f(task, title) * (10 ** len(query)) for task, title in zip(active_tasks, titles)]
+            best = ds[0]
+
+            for i in itertools.takewhile(lambda i: ds[i] == best, range(len(ds))):
+                ds[i] -= len(lcs(query, titles[i]))
+
+            #return sorted(active_tasks, key=f)
+            return [task for i, task in sorted(enumerate(active_tasks), key=lambda i: ds[i[0]])]
 
     def __call__(self):
         model = WindowModel(
-            self.sorted_active_runnable(self.query, _top_level_windows())\
+            self.sorted_active_runnable(self.query, _top_level_windows())
             >> sm.map(lambda t: WindowInfo(
                 hwnd=t.hwnd,
                 name=_window_title(t.hwnd),
                 icon=winutils.get_window_icon(t.hwnd)
-            ))\
+            ))
             >> sm.item[:self.upper_bound]
         )
         self._finished = not self.stopped
