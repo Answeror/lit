@@ -128,6 +128,9 @@ class Go(LitPlugin):
                     query=Query(
                         text='' if query is None else query,
                         insertion_cost=1,
+                        first_insertion_cost=50,
+                        prepend_first_insertion_cost=5,
+                        append_first_insertion_cost=10,
                         deletion_cost=100,
                         substitution_cost=100,
                         transposition_cost=10
