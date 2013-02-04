@@ -12,6 +12,10 @@ packages = []
 setup(
     name='lit',
     version='0.1.3',
+    install_requires=[
+        'wmi',
+        'pywin32'
+    ],
     cmdclass=cmds,
     options={
         'build_exe': {

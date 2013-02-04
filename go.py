@@ -38,7 +38,10 @@ class Task(object):
             shortname = self.name[:NAME_LIMIT - 3] + '...'
         else:
             shortname = self.name
-        return '%s (%s)' % (shortname, self.filename)
+        if self.filename:
+            return '%s (%s)' % (shortname, self.filename)
+        else:
+            return shortname
 
     @property
     def title(self):
@@ -46,13 +49,15 @@ class Task(object):
 
     @property
     def fullname(self):
-        return self.title + self.filename
+        if self.filename:
+            return self.title + self.filename
+        else:
+            return self.title
 
     @property
     def filename(self):
         if not hasattr(self, '_filename'):
-            path = winutils.get_app_path(self.hwnd)
-            self._filename = os.path.basename(path)
+            self._filename = winutils.get_app_name(self.hwnd)
         return self._filename
 
     @property
@@ -105,6 +110,7 @@ class Go(LitPlugin):
     def __init__(self):
         self.tasks = {}
         self.mutex = QMutex()
+        #winutils.elevate()
 
     @property
     def name(self):

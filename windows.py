@@ -9,6 +9,7 @@ import win32gui
 import win32con
 import win32api
 import win32process
+import win32security
 from win32gui import *
 #from win32con import SW_RESTORE, SW_SHOWMINIMIZED, SW_SHOW
 from win32con import *
@@ -90,11 +91,73 @@ def SetForegroundWindowInternal(hWnd):
         AttachThreadInput(dwThisTID, dwCurrTID, FALSE)
 
 
+import wmi
+c = wmi.WMI()
+
+
 def get_app_path(hwnd):
-    _, pid = win32process.GetWindowThreadProcessId(hwnd)
-    handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
-    exe = win32process.GetModuleFileNameEx(handle, 0)
-    return exe
+    """Get applicatin path given hwnd."""
+    try:
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        for p in c.query('SELECT ExecutablePath FROM Win32_Process WHERE ProcessId = %s' % str(pid)):
+            exe = p.ExecutablePath
+            break
+    except:
+        return None
+    else:
+        return exe
+
+
+def get_app_name(hwnd):
+    """Get applicatin filename given hwnd."""
+    try:
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        for p in c.query('SELECT Name FROM Win32_Process WHERE ProcessId = %s' % str(pid)):
+            exe = p.Name
+            break
+    except:
+        return None
+    else:
+        return exe
+
+
+def AdjustPrivilege(priv, enable = 1):
+    # Get the process token.
+    flags = win32con.TOKEN_ADJUST_PRIVILEGES | win32con.TOKEN_QUERY
+    htoken = win32security.OpenProcessToken(win32api.GetCurrentProcess(), flags)
+    # Get the ID for the system shutdown privilege.
+    id = win32security.LookupPrivilegeValue(None, priv)
+    # Now obtain the privilege for this process.
+    # Create a list of the privileges to be added.
+    if enable:
+        newPrivileges = [(id, win32con.SE_PRIVILEGE_ENABLED)]
+    else:
+        newPrivileges = [(id, 0)]
+    # and make the adjustment.
+    win32security.AdjustTokenPrivileges(htoken, 0, newPrivileges)
+
+
+def elevate():
+    import os
+    import win32security
+
+    pid = os.getpid()
+    phandle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
+    token_handle=win32security.OpenProcessToken(phandle,win32con.TOKEN_ALL_ACCESS)
+    if token_handle==0:
+        print('提取令牌失败')
+    else:
+        Luid=win32security.LookupPrivilegeValue(None,win32security.SE_DEBUG_NAME)
+        if Luid==0:
+            print('Luid获取失败')
+        else:
+            new_token_pricileges=[(Luid,win32security.SE_PRIVILEGE_ENABLED)]
+            i=win32security.AdjustTokenPrivileges(token_handle,0,new_token_pricileges)
+            if i==0:
+                print('提权失败')
+            else:
+                print('succ')
+    win32api.CloseHandle(token_handle)
 
 
 def goto(hwnd):
