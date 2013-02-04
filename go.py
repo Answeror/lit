@@ -139,6 +139,12 @@ class Go(LitPlugin):
             elif not query is None:
                 self.tasks[hwnd].query.update(query.lower())
 
+    def update_usetime(self, hwnd):
+        """Update with one time delay."""
+        if hasattr(self, 'after_select') and self.after_select:
+            self.after_select()
+        self.after_select = self.tasks[hwnd].use
+
     def select(self, content, index):
         # check content type
         if not isinstance(content, WindowModel):
@@ -149,7 +155,7 @@ class Go(LitPlugin):
             if content.data(index, WindowModel.HWND_ROLE) == hwnd:
                 self._refresh_tasks([hwnd])
                 winutils.goto(hwnd=hwnd)
-                self.tasks[hwnd].use()
+                self.update_usetime(hwnd)
                 return
 
         # remove invalid tasks
