@@ -103,7 +103,7 @@ class Suggest(QWidget):
                 self.popup.hide()
                 #self.editor.setFocus()
                 #QApplication.sendEvent(self.editor, e)
-                return True
+                return False
             elif e.type() == QEvent.KeyPress:
                 key = e.key()
                 if e.key() == Qt.Key_Tab or e.key() == Qt.Key_J and e.modifiers() & Qt.ControlModifier:
