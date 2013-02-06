@@ -5,3 +5,5 @@ build/
 dist/
 __pycache__/
 MANIFEST
+
+resources_rc.py

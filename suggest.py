@@ -21,7 +21,6 @@ from qt.QtCore import (
     QModelIndex,
     QAbstractItemModel
 )
-import stream as sm
 
 
 MAX_ITEM = 7
@@ -243,7 +242,7 @@ class Suggest(QWidget):
             model = content
         else:
             model = QStringListModel()
-            model.setStringList(content >> sm.map(str) >> list)
+            model.setStringList([str(c) for c in content])
 
         self.model = model
 

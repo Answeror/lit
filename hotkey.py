@@ -61,12 +61,14 @@ class Hotkey(object):
             self.fire()
         else:
             x = self.presscount
-            self.presscount = 0
-            self.pending = True
-            try:
-                self.shell.SendKeys(';' * x)
-            finally:
-                self.pending = False
+            if x > 0:
+                self.presscount = 0
+                self.pending = True
+                try:
+                    print('send %d' % x)
+                    self.shell.SendKeys(';' * x)
+                finally:
+                    self.pending = False
 
     def timer_fn(self, id, time):
         self.go()

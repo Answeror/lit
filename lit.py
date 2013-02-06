@@ -44,7 +44,6 @@ Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
 from common import LitJob, AsyncJob
-import stream as sm
 import os
 import re
 import win32gui
@@ -187,7 +186,7 @@ class Lit(QWidget):
         #QTimer.singleShot(100, lambda: windows.goto(hwnd(self)))
 
     def _install_plugins(self, plugins):
-        self.plugins = plugins >> sm.map(lambda p: (p.name, p)) >> dict
+        self.plugins = {p.name: p for p in plugins}
         self.default_plugin = plugins[0] if self.plugins else None
         self._setup_plugins()
 
@@ -366,7 +365,7 @@ class Completer(QCompleter):
             model = result
         else:
             model = QStringListModel()
-            model.setStringList(result >> sm.map(str) >> list)
+            model.setStringList([str(r) for r in result])
 
         self.setModel(model)
         self.setCompletionPrefix('')
@@ -512,11 +511,12 @@ if __name__ == '__main__':
             app.setStyleSheet(f.read())
 
         from go import Go
-        from run import Run
-        from recent import Recent
-        from iciba import Iciba
+        #from run import Run
+        #from recent import Recent
+        #from iciba import Iciba
         #from f import F
-        lit = Lit([Go(), Run(), Recent(), Iciba()])
+        #lit = Lit([Go(), Run(), Recent(), Iciba()])
+        lit = Lit([Go()])
         lit.show()
 
         #return app.exec_()

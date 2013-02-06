@@ -6,7 +6,6 @@ import win32gui
 import windows as winutils
 from datetime import datetime
 from utils import Query
-import stream as sm
 from PyQt4.QtCore import (
     Qt,
     QAbstractListModel,
@@ -188,7 +187,7 @@ class Job(LitJob):
         with QMutexLocker(self.go.mutex):
             # update query and collect active ones
             self.go._refresh_tasks(hwnds, query)
-            active_tasks = hwnds >> sm.map(lambda h: self.go.tasks[h]) >> list
+            active_tasks = [self.go.tasks[h] for h in hwnds]
 
             # sort by last use
             if not query:
