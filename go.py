@@ -6,7 +6,6 @@ import win32gui
 import windows as winutils
 from datetime import datetime
 from utils import Query
-import stream as sm
 from PyQt4.QtCore import (
     Qt,
     QAbstractListModel,
@@ -120,7 +119,7 @@ class Job(LitJob, QThread):
         with QMutexLocker(self.go.mutex):
             # update query and collect active ones
             self.go._refresh_tasks(hwnds, query)
-            active_tasks = hwnds >> sm.map(lambda h: self.go.tasks[h]) >> list
+            active_tasks = [self.go.tasks[h] for h in hwnds]
 
             # sort by last use
             if not query:
@@ -136,13 +135,14 @@ class Job(LitJob, QThread):
 
     def run(self):
         model = WindowModel(
-            self.sorted_active_runnable(self.query, _top_level_windows())\
-            >> sm.map(lambda t: WindowInfo(
-                hwnd=t.hwnd,
-                name=_window_title(t.hwnd),
-                icon=winutils.get_window_icon(t.hwnd)
-            ))\
-            >> sm.item[:self.upper_bound]
+            [
+                WindowInfo(
+                    hwnd=t.hwnd,
+                    name=_window_title(t.hwnd),
+                    icon=winutils.get_window_icon(t.hwnd)
+                ) for t in
+                self.sorted_active_runnable(self.query, _top_level_windows())\
+            ][:self.upper_bound]
         )
         if self.done and not self.stopped:
             self.done(model)

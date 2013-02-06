@@ -6,7 +6,6 @@ from common import LitPlugin, LitJob
 from utils import Query
 import win32api
 from collections import namedtuple
-import stream as sm
 from PyQt4.QtCore import (
     QThread,
     QMutex,
@@ -98,9 +97,7 @@ class Job(LitJob, QThread):
                     return 0
                 return arg[1].query.distance_to(arg[1].name.lower())
 
-            names = sorted(self.d.items(), key=f)\
-                    >> sm.apply(lambda name, _: name)\
-                    >> sm.item[:self.upper_bound]
+            names = [name for name, _ in sorted(self.d.items(), key=f)][:self.upper_bound]
 
         if self.done and not self.stopped:
             self.done(names)
