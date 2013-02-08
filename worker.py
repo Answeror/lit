@@ -79,7 +79,7 @@ class Worker(QObject):
     def do(self, job, finished=None, main=False):
         """Do some asyne job, maybe in main thread."""
         if main:
-            self.mainq.append(job)
+            self.mainq.append(lambda: finished(job()))
             self.delay_deal_main()
         else:
             job = Job(job)

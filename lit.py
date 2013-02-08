@@ -111,7 +111,6 @@ class Lit(QWidget):
         self.mutex = QMutex()
 
         self.jobs = []
-        self.worker = Worker()
 
         self.hotkey_thread = HotkeyThread()
         self.hotkey_thread.fire.connect(self.handle_hotkey)
@@ -224,7 +223,6 @@ class Lit(QWidget):
                 plugin.lit(
                     arg,
                     upper_bound=MAX_LIST_LENGTH,
-                    worker=self.worker,
                     finished=self._try_popup
                 )
 
@@ -500,13 +498,15 @@ if __name__ == '__main__':
         with open(STYLESHEET, 'r') as f:
             app.setStyleSheet(f.read())
 
+        worker = Worker()
+
         from go import Go
-        #from run import Run
+        from run import Run
         #from recent import Recent
         #from iciba import Iciba
         #from f import F
         #lit = Lit([Go(), Run(), Recent(), Iciba()])
-        lit = Lit([Go()])
+        lit = Lit([Go(worker), Run(worker)])
         lit.show()
 
         #return app.exec_()

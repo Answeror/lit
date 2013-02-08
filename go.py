@@ -106,17 +106,17 @@ class WindowModel(QAbstractListModel):
 
 class Go(LitPlugin):
 
-    def __init__(self):
+    def __init__(self, worker):
         self.tasks = {}
         self.mutex = QMutex()
-        #winutils.elevate()
+        self.worker = worker
 
     @property
     def name(self):
         return 'g'
 
-    def lit(self, query, upper_bound, worker, finished, *args, **kargs):
-        worker.do(
+    def lit(self, query, upper_bound, finished, *args, **kargs):
+        self.worker.do(
             lambda: WindowModel(
                 self.sorted_active_runnable(
                     query,

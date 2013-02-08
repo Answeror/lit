@@ -50,13 +50,15 @@ class Runnable(QObject):
             #QThreadPool.globalInstance().start(AsyncJob(self._fill_icon))
             #QTimer.singleShot(0, self._fill_icon)
             #self._icon = windows.get_file_icon(self.path)
-            self.worker.do(self._fill_icon)
+            self.worker.do(self._fill_icon, finished=self.foo, main=True)
             self._icon = QIcon(':/unknown.png')
         return self._icon
 
+    def foo(self, o):
+        self.icon_loaded.emit()
+
     def _fill_icon(self):
         self._icon = windows.get_file_icon(self.path)
-        self.icon_loaded.emit()
 
 
 class RunnableModel(QAbstractListModel):
@@ -70,10 +72,9 @@ class RunnableModel(QAbstractListModel):
         for i, item in enumerate(self.items):
             index = self.index(i, 0)
             # must use Qt.DirectConnection here, but why?
-            item.icon_loaded.connect(
-                lambda: self.dataChanged.emit(index, index),
-                Qt.DirectConnection
-            )
+            def inner():
+                self.dataChanged.emit(index, index)
+            item.icon_loaded.connect(inner)
 
     def rowCount(self, parent):
         return len(self.items)
@@ -96,10 +97,11 @@ class RunnableModel(QAbstractListModel):
 
 class Files(LitPlugin):
 
-    def __init__(self):
+    def __init__(self, worker):
         super(Files, self).__init__()
         self.d = dict()
         self.mutex = QMutex()
+        self.worker = worker
 
     def path_list_changed(self):
         """Update runnable list."""
@@ -151,21 +153,20 @@ class Files(LitPlugin):
             except Exception as e:
                 logging.error(e)
 
-    def lit(self, query, upper_bound, worker, finished, *args, **kargs):
+    def lit(self, query, upper_bound, finished, *args, **kargs):
         """Use mutex to protect self.d."""
-        with QMutexLocker(self.mutex):
-            for runnable in self.d.values():
-                runnable.query.update(self.query.lower())
+        def inner():
+            with QMutexLocker(self.mutex):
+                for runnable in self.d.values():
+                    runnable.query.update(query.lower())
 
-            def f(runnable):
-                """Don't calculate editing distance if job stopped."""
-                if self.stopped:
-                    return 0
-                elif not self.query:
-                    return runnable.order
-                else:
-                    return runnable.query.distance_to(runnable.name.lower())
+                def f(runnable):
+                    """Don't calculate editing distance if job stopped."""
+                    if not query:
+                        return runnable.order
+                    else:
+                        return runnable.query.distance_to(runnable.name.lower())
 
-            model = RunnableModel(sorted(self.d.values(), key=f)[:self.upper_bound])
-            self._finished = not self.stopped
-            return None if self.stopped else model
+                return RunnableModel(sorted(self.d.values(), key=f)[:upper_bound])
+
+        self.worker.do(inner, finished=finished)
