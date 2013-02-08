@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from common import LitPlugin, LitJob
+from common import LitPlugin
 import win32gui
 import windows as winutils
 from datetime import datetime
@@ -10,12 +10,12 @@ from PyQt4.QtCore import (
     Qt,
     QAbstractListModel,
     QMutex,
-    QMutexLocker
+    QMutexLocker,
+    QObject
 )
 import itertools
 import logging
 from lcs import lcs
-import os
 
 
 NAME_LIMIT = 42
@@ -115,8 +115,40 @@ class Go(LitPlugin):
     def name(self):
         return 'g'
 
-    def lit(self, query, upper_bound, *args, **kargs):
-        return Job(self, query, upper_bound)
+    def lit(self, query, upper_bound, worker, finished, *args, **kargs):
+        worker.do(
+            lambda: WindowModel(
+                self.sorted_active_runnable(
+                    query,
+                    _top_level_windows()
+                )[:upper_bound]
+            ),
+            finished=finished
+        )
+
+    def sorted_active_runnable(self, query, hwnds):
+        with QMutexLocker(self.mutex):
+            # update query and collect active ones
+            self._refresh_tasks(hwnds, query)
+            active_tasks = [self.tasks[h] for h in hwnds]
+
+            # sort by last use
+            if not query:
+                return sorted(active_tasks, key=lambda t: t.usetime, reverse=True)
+
+            titles = [task.fullname.lower() for task in active_tasks]
+
+            def f(task, title):
+                return task.query.distance_to(title)
+
+            ds = [f(task, title) * (10 ** len(query)) for task, title in zip(active_tasks, titles)]
+            best = ds[0]
+
+            for i in itertools.takewhile(lambda i: ds[i] == best, range(len(ds))):
+                ds[i] -= len(lcs(query, titles[i]))
+
+            #return sorted(active_tasks, key=f)
+            return [task for i, task in sorted(enumerate(active_tasks), key=lambda i: ds[i[0]])]
 
     def _refresh_tasks(self, hwnds, query=None):
         for hwnd in hwnds:
@@ -159,66 +191,6 @@ class Go(LitPlugin):
 
         # remove invalid tasks
         del self.tasks[content.data(index, WindowModel.HWND_ROLE)]
-
-
-class Job(LitJob):
-
-    def __init__(self, go, query, upper_bound):
-        LitJob.__init__(self)
-        self.go = go
-        self.done = None
-        self.stopped = False
-        self.query = query
-        self.upper_bound = upper_bound
-        self._finished = False
-
-    def stop(self):
-        self.stopped = True
-
-    @property
-    def finished(self):
-        return self._finished
-
-    @property
-    def main(self):
-        return True
-
-    def sorted_active_runnable(self, query, hwnds):
-        with QMutexLocker(self.go.mutex):
-            # update query and collect active ones
-            self.go._refresh_tasks(hwnds, query)
-            active_tasks = [self.go.tasks[h] for h in hwnds]
-
-            # sort by last use
-            if not query:
-                return sorted(active_tasks, key=lambda t: t.usetime, reverse=True)
-
-            titles = [task.fullname.lower() for task in active_tasks]
-
-            def f(task, title):
-                """Don't calculate editing distance if job stopped."""
-                if self.stopped:
-                    return 0
-                return task.query.distance_to(title)
-
-            ds = [f(task, title) * (10 ** len(query)) for task, title in zip(active_tasks, titles)]
-            best = ds[0]
-
-            for i in itertools.takewhile(lambda i: ds[i] == best, range(len(ds))):
-                ds[i] -= len(lcs(query, titles[i]))
-
-            #return sorted(active_tasks, key=f)
-            return [task for i, task in sorted(enumerate(active_tasks), key=lambda i: ds[i[0]])]
-
-    def __call__(self):
-        model = WindowModel(
-            self.sorted_active_runnable(
-                self.query,
-                _top_level_windows()
-            )[:self.upper_bound]
-        )
-        self._finished = not self.stopped
-        return None if self.stopped else model
 
 
 def _top_level_windows():

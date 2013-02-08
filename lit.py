@@ -43,16 +43,13 @@ Signal = pyqtSignal
 Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
-from common import LitJob, AsyncJob
 import os
 import re
-import win32gui
 import ctypes
 import logging
-import win32con
-import time
 
 from suggest import Suggest
+from worker import Worker
 
 # these config should be saved
 MAX_LIST_LENGTH = 20
@@ -114,6 +111,7 @@ class Lit(QWidget):
         self.mutex = QMutex()
 
         self.jobs = []
+        self.worker = Worker()
 
         self.hotkey_thread = HotkeyThread()
         self.hotkey_thread.fire.connect(self.handle_hotkey)
@@ -223,20 +221,12 @@ class Lit(QWidget):
                 if cmd in self.plugins:
                     plugin = self.plugins[cmd]
             if plugin:
-                job = plugin.lit(arg, upper_bound=MAX_LIST_LENGTH)
-                assert isinstance(job, LitJob)
-
-                if job.main:
-                    self._try_popup(job())
-                else:
-                    # make sync job
-                    job = AsyncJob(job)
-                    # rebuild job list
-                    self._clean_jobs()
-                    self.jobs.append(job)
-                    # set finish callback and start this job
-                    job.done.connect(self._try_popup)
-                    job()
+                plugin.lit(
+                    arg,
+                    upper_bound=MAX_LIST_LENGTH,
+                    worker=self.worker,
+                    finished=self._try_popup
+                )
 
     def select(self, index):
         cmd = self.cmd

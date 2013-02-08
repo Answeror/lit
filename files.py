@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-from common import LitPlugin, LitJob, Worker
+from common import LitPlugin, LitJob
 from utils import Query
 import win32api
 from qt.QtGui import (
@@ -99,9 +99,7 @@ class Files(LitPlugin):
     def __init__(self):
         super(Files, self).__init__()
         self.d = dict()
-        self.worker = Worker()
         self.mutex = QMutex()
-        self.worker.run()
 
     def path_list_changed(self):
         """Update runnable list."""
@@ -140,9 +138,6 @@ class Files(LitPlugin):
     def paths(self):
         assert False, 'Not implemented.'
 
-    def lit(self, query, upper_bound, *args, **kargs):
-        return Job(self.d, self.mutex, query, upper_bound)
-
     def select(self, content, index):
         # check content type
         if not isinstance(content, RunnableModel):
@@ -156,27 +151,7 @@ class Files(LitPlugin):
             except Exception as e:
                 logging.error(e)
 
-
-class Job(LitJob):
-
-    def __init__(self, d, mutex, query, upper_bound):
-        LitJob.__init__(self)
-        self.done = None
-        self.stopped = False
-        self.d = d
-        self.mutex = mutex
-        self.query = query
-        self.upper_bound = upper_bound
-        self._finished = False
-
-    def stop(self):
-        self.stopped = True
-
-    @property
-    def finished(self):
-        return self._finished
-
-    def __call__(self):
+    def lit(self, query, upper_bound, worker, finished, *args, **kargs):
         """Use mutex to protect self.d."""
         with QMutexLocker(self.mutex):
             for runnable in self.d.values():
