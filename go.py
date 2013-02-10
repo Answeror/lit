@@ -117,13 +117,14 @@ class Go(LitPlugin):
 
     def lit(self, query, upper_bound, finished, *args, **kargs):
         self.worker.do(
-            lambda: WindowModel(
+            make=lambda: WindowModel(
                 self.sorted_active_runnable(
                     query,
                     _top_level_windows()
                 )[:upper_bound]
             ),
-            finished=finished
+            catch=finished,
+            main=True
         )
 
     def sorted_active_runnable(self, query, hwnds):

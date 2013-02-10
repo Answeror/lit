@@ -5,18 +5,105 @@ from collections import deque
 from qt.QtCore import (
     Qt,
     QMetaObject,
-    QRunnable,
-    QThreadPool,
     QThread,
     QObject,
-    Signal,
-    Slot
+    Slot,
+    Q_ARG
 )
 
 
-class Job(QObject):
+class Action(QObject):
 
-    finished = Signal(object)
+    def __init__(self, impl, finished=None, failed=None, main=False):
+        super(Action, self).__init__()
+        self.impl = impl
+        self._finished = finished
+        self._failed = failed
+        self.main = main
+
+    @Slot()
+    def finished(self):
+        if self._finished:
+            self._finished()
+        self.deleteLater()
+
+    @Slot(object)
+    def failed(self, e):
+        if self._failed:
+            self._failed(e)
+        self.deleteLater()
+
+    @Slot()
+    def run(self):
+        try:
+            self.impl()
+            if self.main:
+                self.finished()
+            else:
+                QMetaObject.invokeMethod(
+                    self,
+                    'finished',
+                    Qt.QueuedConnection
+                )
+        except Exception as e:
+            if self.main:
+                self.failed(e)
+            else:
+                QMetaObject.invokeMethod(
+                    self,
+                    'failed',
+                    Qt.QueuedConnection,
+                    Q_ARG(object, e)
+                )
+
+
+class Make(QObject):
+
+    def __init__(self, impl, finished=None, failed=None, main=False):
+        super(Make, self).__init__()
+        self.impl = impl
+        self._finished = finished
+        self._failed = failed
+        self.main = main
+
+    @Slot(object)
+    def finished(self, result):
+        if self._finished:
+            self._finished(result)
+        self.deleteLater()
+
+    @Slot(object)
+    def failed(self, e):
+        if self._failed:
+            self._failed(e)
+        self.deleteLater()
+
+    @Slot()
+    def run(self):
+        try:
+            result = self.impl()
+            if self.main:
+                self.finished(result)
+            else:
+                QMetaObject.invokeMethod(
+                    self,
+                    'finished',
+                    Qt.QueuedConnection,
+                    Q_ARG(object, result)
+                )
+        except Exception as e:
+            if self.main:
+                self.failed(e)
+            else:
+                QMetaObject.invokeMethod(
+                    self,
+                    'failed',
+                    Qt.QueuedConnection,
+                    Q_ARG(object, e)
+                )
+
+
+class Job(QObject):
 
     def __init__(self, impl):
         super(Job, self).__init__()
@@ -24,66 +111,91 @@ class Job(QObject):
 
     @Slot()
     def run(self):
-        self.finished.emit(self.impl())
+        self.impl.run()
         self.deleteLater()
+
+
+class Pool(object):
+
+    def __init__(self):
+        self.thread = QThread()
+        self.thread.start()
+        self.local = QObject()
+        self.remote = QObject()
+        self.remote.moveToThread(self.thread)
+
+    def start(self, job):
+        job.setParent(self.local)
+        job = Job(job)
+        job.moveToThread(self.thread)
+        job.setParent(self.remote)
+        QMetaObject.invokeMethod(
+            job,
+            'run',
+            Qt.QueuedConnection
+        )
+
+    def clear(self):
+        for job in self.local.children():
+            if hasattr(job, 'cancel'):
+                job.cancel()
 
 
 class Worker(QObject):
 
     def __init__(self):
         super(Worker, self).__init__()
-        self.mainq = deque()
         self.q = deque()
-        self.thread = QThread()
-        self.thread.start()
-        self.root = QObject()
-        self.root.moveToThread(self.thread)
-
-    @Slot()
-    def deal_main(self):
-        """This method must be called in main thread."""
-        if self.mainq:
-            job = self.mainq.popleft()
-            job()
-            if self.mainq:
-                self.delay_deal_main()
-
-    def delay_call(self, name):
-        QMetaObject.invokeMethod(
-            self,
-            name,
-            Qt.QueuedConnection
-        )
-
-    def delay_deal_main(self):
-        self.delay_call('deal_main')
+        self.pool = Pool()
 
     @Slot()
     def deal(self):
-        if self.q:
+        try:
             job = self.q.popleft()
-            #QThreadPool.globalInstance().start(Runnable(job))
-            job.moveToThread(self.thread)
-            job.setParent(self.root)
-            QMetaObject.invokeMethod(
-                job,
-                'run',
-                Qt.QueuedConnection
-            )
+        except:
+            pass
+        else:
+            if _getattr(job, 'main', False):
+                job.run()
+            else:
+                self.pool.start(job)
             if self.q:
                 self.delay_deal()
 
-    def delay_deal(self):
-        self.delay_call('deal')
+    def clear(self):
+        self.q.clear()
+        self.pool.clear()
 
-    def do(self, job, finished=None, main=False):
+    def delay_deal(self):
+        QMetaObject.invokeMethod(
+            self,
+            'deal',
+            Qt.QueuedConnection
+        )
+
+    def do(self, **kargs):
         """Do some asyne job, maybe in main thread."""
-        if main:
-            self.mainq.append(lambda: finished(job()))
-            self.delay_deal_main()
+        if 'make' in kargs:
+            make = kargs['make']
+            catch = kargs.get('catch', lambda x: x)
+            job = Make(make, catch, main=kargs.get('main', False))
+        elif 'action' in kargs:
+            action = kargs['action']
+            react = kargs.get('react', lambda: None)
+            job = Action(action, react, main=kargs.get('main', False))
+        elif 'job' in kargs:
+            job = kargs['job']
+            _check_job(job)
         else:
-            job = Job(job)
-            if finished:
-                job.finished.connect(finished, Qt.QueuedConnection)
-            self.q.append(job)
-            self.delay_deal()
+            assert False, 'Wrong arguments.'
+        self.q.append(job)
+        self.delay_deal()
+
+
+def _getattr(target, name, default):
+    return getattr(target, name) if hasattr(target, name) else default
+
+
+def _check_job(job):
+    assert isinstance(job, QObject)
+    assert hasattr(job, 'run')

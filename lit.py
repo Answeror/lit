@@ -220,6 +220,7 @@ class Lit(QWidget):
                 if cmd in self.plugins:
                     plugin = self.plugins[cmd]
             if plugin:
+                plugin.worker.clear()
                 plugin.lit(
                     arg,
                     upper_bound=MAX_LIST_LENGTH,

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-from common import LitPlugin, LitJob
+from common import LitPlugin
 from utils import Query
 import win32api
 from qt.QtGui import (
@@ -11,16 +11,19 @@ from qt.QtGui import (
 )
 from qt.QtCore import (
     Qt,
-    QThread,
     QMutex,
     QMutexLocker,
     QFileInfo,
     QAbstractListModel,
     Signal,
-    QObject
+    Slot,
+    QObject,
+    QMetaObject,
+    Q_ARG
 )
 import logging
 import windows
+from functools import partial
 import resources_rc
 
 
@@ -50,15 +53,31 @@ class Runnable(QObject):
             #QThreadPool.globalInstance().start(AsyncJob(self._fill_icon))
             #QTimer.singleShot(0, self._fill_icon)
             #self._icon = windows.get_file_icon(self.path)
-            self.worker.do(self._fill_icon, finished=self.foo, main=True)
-            self._icon = QIcon(':/unknown.png')
-        return self._icon
+            self.worker.do(
+                action=self._fill_icon,
+                react=self._fill_icon_finished,
+                main=True
+            )
+            return QIcon(':/unknown.png')
+        else:
+            return self._icon
 
-    def foo(self, o):
+    def _fill_icon_finished(self):
         self.icon_loaded.emit()
 
     def _fill_icon(self):
         self._icon = windows.get_file_icon(self.path)
+
+
+class UpdateIcon(QObject):
+
+    def __init__(self, model, index):
+        super(UpdateIcon, self).__init__(model)
+        self.index = index
+
+    @Slot()
+    def fire(self):
+        self.parent().dataChanged.emit(self.index, self.index)
 
 
 class RunnableModel(QAbstractListModel):
@@ -70,11 +89,11 @@ class RunnableModel(QAbstractListModel):
         super(RunnableModel, self).__init__()
         self.items = items
         for i, item in enumerate(self.items):
-            index = self.index(i, 0)
             # must use Qt.DirectConnection here, but why?
-            def inner():
-                self.dataChanged.emit(index, index)
-            item.icon_loaded.connect(inner)
+            update = UpdateIcon(self, self.index(i, 0))
+            update.setParent(self)
+            item.icon_loaded.connect(update.fire)
+            self.destroyed.connect(partial(item.icon_loaded.disconnect, update.fire))
 
     def rowCount(self, parent):
         return len(self.items)
@@ -154,19 +173,49 @@ class Files(LitPlugin):
                 logging.error(e)
 
     def lit(self, query, upper_bound, finished, *args, **kargs):
-        """Use mutex to protect self.d."""
-        def inner():
+        self.worker.do(job=Job(self, query, upper_bound, finished))
+
+
+class Job(QObject):
+
+    mutex = QMutex()
+
+    def __init__(self, p, query, upper_bound, finished):
+        super(Job, self).__init__()
+        self.p = p
+        self.query = query
+        self.upper_bound = upper_bound
+        self.finished = finished
+        self.canceled = False
+
+    @Slot(object)
+    def _make_model(self, args):
+        if not self.canceled:
             with QMutexLocker(self.mutex):
-                for runnable in self.d.values():
-                    runnable.query.update(query.lower())
+                self.finished(RunnableModel(args))
+        self.deleteLater()
 
-                def f(runnable):
-                    """Don't calculate editing distance if job stopped."""
-                    if not query:
-                        return runnable.order
-                    else:
-                        return runnable.query.distance_to(runnable.name.lower())
+    def cancel(self):
+        self.canceled = True
 
-                return RunnableModel(sorted(self.d.values(), key=f)[:upper_bound])
+    def run(self):
+        """Use mutex to protect self.d."""
+        with QMutexLocker(self.p.mutex):
+            for runnable in self.p.d.values():
+                runnable.query.update(self.query.lower())
 
-        self.worker.do(inner, finished=finished)
+            def f(runnable):
+                """Don't calculate editing distance if job stopped."""
+                if self.canceled:
+                    return 0
+                elif not self.query:
+                    return runnable.order
+                else:
+                    return runnable.query.distance_to(runnable.name.lower())
+
+            QMetaObject.invokeMethod(
+                self,
+                '_make_model',
+                Qt.QueuedConnection,
+                Q_ARG(object, sorted(self.p.d.values(), key=f)[:self.upper_bound])
+            )

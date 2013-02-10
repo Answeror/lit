@@ -8,7 +8,9 @@ from qt.QtCore import (
     QMetaObject,
     Qt,
     Slot,
-    Signal
+    Signal,
+    QRunnable,
+    QThreadPool
 )
 
 

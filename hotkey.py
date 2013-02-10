@@ -65,7 +65,6 @@ class Hotkey(object):
                 self.presscount = 0
                 self.pending = True
                 try:
-                    print('send %d' % x)
                     self.shell.SendKeys(';' * x)
                 finally:
                     self.pending = False
