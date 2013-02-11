@@ -56,7 +56,8 @@ class Runnable(QObject):
             self.worker.do(
                 action=self._fill_icon,
                 react=self._fill_icon_finished,
-                main=True
+                main=True,
+                priority=-42
             )
             return QIcon(':/unknown.png')
         else:

@@ -1,25 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from collections import deque
+#from collections import deque
 from qt.QtCore import (
     Qt,
     QMetaObject,
     QThread,
     QObject,
     Slot,
-    Q_ARG
+    Q_ARG,
+    QMutex,
+    QMutexLocker
 )
+import heapq
+import itertools
 
 
 class Action(QObject):
 
-    def __init__(self, impl, finished=None, failed=None, main=False):
+    def __init__(self, impl, finished=None, failed=None, main=False, priority=0):
         super(Action, self).__init__()
         self.impl = impl
         self._finished = finished
         self._failed = failed
         self.main = main
+        self.priority = priority
 
     @Slot()
     def finished(self):
@@ -59,12 +64,13 @@ class Action(QObject):
 
 class Make(QObject):
 
-    def __init__(self, impl, finished=None, failed=None, main=False):
+    def __init__(self, impl, finished=None, failed=None, main=False, priority=0):
         super(Make, self).__init__()
         self.impl = impl
         self._finished = finished
         self._failed = failed
         self.main = main
+        self.priority = priority
 
     @Slot(object)
     def finished(self, result):
@@ -141,17 +147,61 @@ class Pool(object):
                 job.cancel()
 
 
+class Heap(object):
+
+    REMOVED = '<removed-task>'      # placeholder for a removed task
+
+    def __init__(self):
+        self.mutex = QMutex()
+        self.clear()
+
+    def push(self, task, priority=0):
+        'Add a new task or update the priority of an existing task'
+        with QMutexLocker(self.mutex):
+            if task in self.entry_finder:
+                self.remove(task)
+            count = next(self.counter)
+            entry = [priority, count, task]
+            self.entry_finder[task] = entry
+            heapq.heappush(self.pq, entry)
+
+    def remove(self, task):
+        'Mark an existing task as REMOVED.  Raise KeyError if not found.'
+        with QMutexLocker(self.mutex):
+            entry = self.entry_finder.pop(task)
+            entry[-1] = self.REMOVED
+
+    def pop(self):
+        'Remove and return the lowest priority task. Raise KeyError if empty.'
+        with QMutexLocker(self.mutex):
+            while self.pq:
+                priority, count, task = heapq.heappop(self.pq)
+                if task is not self.REMOVED:
+                    del self.entry_finder[task]
+                    return task
+            raise KeyError('pop from an empty priority queue')
+
+    def clear(self):
+        self.pq = []                         # list of entries arranged in a heap
+        self.entry_finder = {}               # mapping of tasks to entries
+        self.counter = itertools.count()     # unique sequence count
+
+    def __bool__(self):
+        return bool(self.pq)
+
+
 class Worker(QObject):
 
     def __init__(self):
         super(Worker, self).__init__()
-        self.q = deque()
+        #self.q = deque()
+        self.q = Heap()
         self.pool = Pool()
 
     @Slot()
     def deal(self):
         try:
-            job = self.q.popleft()
+            job = self.q.pop()
         except:
             pass
         else:
@@ -178,17 +228,28 @@ class Worker(QObject):
         if 'make' in kargs:
             make = kargs['make']
             catch = kargs.get('catch', lambda x: x)
-            job = Make(make, catch, main=kargs.get('main', False))
+            job = Make(
+                make,
+                catch,
+                main=kargs.get('main', False),
+                priority=kargs.get('priority', 0)
+            )
         elif 'action' in kargs:
             action = kargs['action']
             react = kargs.get('react', lambda: None)
-            job = Action(action, react, main=kargs.get('main', False))
+            job = Action(
+                action,
+                react,
+                main=kargs.get('main', False),
+                priority=kargs.get('priority', 0)
+            )
         elif 'job' in kargs:
             job = kargs['job']
             _check_job(job)
         else:
             assert False, 'Wrong arguments.'
-        self.q.append(job)
+
+        self.q.push(job, -_getattr(job, 'priority', 0))
         self.delay_deal()
 
 
