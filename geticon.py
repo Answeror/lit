@@ -4,6 +4,7 @@ from qt.QtGui import (
 )
 
 from win32com.shell import shell, shellcon
+import win32con
 
 import win32gui
 import pywintypes
@@ -47,6 +48,8 @@ def get_file_icon_by_shell(path):
         0,
         shellcon.SHGFI_ICON|shellcon.SHGFI_SMALLICON|shellcon.SHGFI_SYSICONINDEX|shellcon.SHGFI_TYPENAME|shellcon.SHGFI_USEFILEATTRIBUTES,
     )
+    if hIcon == win32con.NULL:
+        return None
     pixmap = QPixmap.fromWinHICON(hIcon)
     win32gui.DestroyIcon(hIcon)
     icon = QIcon(pixmap)

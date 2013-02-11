@@ -59,15 +59,20 @@ class Runnable(QObject):
                 main=True,
                 priority=-42
             )
-            return QIcon(':/unknown.png')
+            return self._default_icon()
         else:
             return self._icon
+
+    def _default_icon(self):
+        return QIcon(':/unknown.png')
 
     def _fill_icon_finished(self):
         self.icon_loaded.emit()
 
     def _fill_icon(self):
         self._icon = windows.get_file_icon(self.path)
+        if self._icon is None:
+            self._icon = self._default_icon()
 
 
 class UpdateIcon(QObject):

@@ -290,10 +290,14 @@ def get_hicon(hWin):
     return hIcon
 
 
+def valid_handle(h):
+    return h != win32con.NULL
+
+
 def make_qicon(hicon):
     width = 16
     height = 16
-    if hicon:
+    if valid_handle(hicon):
         return QPixmap.fromWinHICON(hicon).scaled(width, height)
     else:
         ret = QPixmap(width, height)
@@ -314,7 +318,12 @@ def get_window_icon(hwnd):
     """Return QPixmap."""
     #hicon = win32gui.GetClassLong(hwnd, win32con.GCL_HICON)
     hicon = get_hicon(hwnd)
-    return make_qicon(hicon)
+    if not valid_handle(hicon):
+        return None
+    try:
+        return make_qicon(hicon)
+    except:
+        return None
     #info = win32gui.GetIconInfo(hicon)
     #try:
         #return QPixmap.fromWinHBITMAP(info[4])
@@ -403,76 +412,76 @@ def qt_fromWinHBITMAP(hdc, bitmap, w, h):
 
     return image
 
-def fromWinHICON(icon):
-    foundAlpha = False
-    screenDevice = win32gui.GetDC(0)
-    hdc = win32gui.CreateCompatibleDC(screenDevice)
-    win32gui.ReleaseDC(0, screenDevice)
+#def fromWinHICON(icon):
+    #foundAlpha = False
+    #screenDevice = win32gui.GetDC(0)
+    #hdc = win32gui.CreateCompatibleDC(screenDevice)
+    #win32gui.ReleaseDC(0, screenDevice)
 
-    fIcon, xHotspot, yHotspot, hbmMask, hbmColor = win32gui.GetIconInfo(icon)  # x and y Hotspot describes the icon center
+    #fIcon, xHotspot, yHotspot, hbmMask, hbmColor = win32gui.GetIconInfo(icon)  # x and y Hotspot describes the icon center
 
-    w = xHotspot * 2;
-    h = yHotspot * 2;
+    #w = xHotspot * 2;
+    #h = yHotspot * 2;
 
-    bitmapInfo = BITMAPINFOHEADER()
-    bitmapInfo.biSize        = ctypes.sizeof(BITMAPINFOHEADER)
-    bitmapInfo.biWidth       = w
-    bitmapInfo.biHeight      = h
-    bitmapInfo.biPlanes      = 1
-    bitmapInfo.biBitCount    = 32
-    bitmapInfo.biCompression = win32con.BI_RGB
-    bitmapInfo.biSizeImage   = 0
-    bitmapInfo.biXPelsPerMeter = 0
-    bitmapInfo.biYPelsPerMeter = 0
-    bitmapInfo.biClrUsed       = 0
-    bitmapInfo.biClrImportant  = 0
+    #bitmapInfo = BITMAPINFOHEADER()
+    #bitmapInfo.biSize        = ctypes.sizeof(BITMAPINFOHEADER)
+    #bitmapInfo.biWidth       = w
+    #bitmapInfo.biHeight      = h
+    #bitmapInfo.biPlanes      = 1
+    #bitmapInfo.biBitCount    = 32
+    #bitmapInfo.biCompression = win32con.BI_RGB
+    #bitmapInfo.biSizeImage   = 0
+    #bitmapInfo.biXPelsPerMeter = 0
+    #bitmapInfo.biYPelsPerMeter = 0
+    #bitmapInfo.biClrUsed       = 0
+    #bitmapInfo.biClrImportant  = 0
 
-    winBitmap = ctypes.windll.gdi32.CreateDIBSection(
-        hdc,
-        ctypes.byref(bitmapInfo),
-        win32con.DIB_RGB_COLORS,
-        ctypes.c_void_p(),
-        win32con.NULL,
-        0
-    )
-    oldhdc = win32gui.SelectObject(hdc, winBitmap)
-    win32gui.DrawIconEx(hdc, 0, 0, icon, xHotspot * 2,
-                        yHotspot * 2, 0, 0, DI_NORMAL)
-    image = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
+    #winBitmap = ctypes.windll.gdi32.CreateDIBSection(
+        #hdc,
+        #ctypes.byref(bitmapInfo),
+        #win32con.DIB_RGB_COLORS,
+        #ctypes.c_void_p(),
+        #win32con.NULL,
+        #0
+    #)
+    #oldhdc = win32gui.SelectObject(hdc, winBitmap)
+    #win32gui.DrawIconEx(hdc, 0, 0, icon, xHotspot * 2,
+                        #yHotspot * 2, 0, 0, DI_NORMAL)
+    #image = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
 
-    #for y in range(h):
-        #if foundAlpha:
-            #break
-        #QRgb *scanLine= reinterpret_cast<QRgb *>(image.scanLine(y));
-        #for (int x = 0; x < w ; x++) {
-            #if (qAlpha(scanLine[x]) != 0) {
-                #foundAlpha = true;
-                #break;
-            #}
-        #}
-    #}
-    #if not foundAlpha):
-        ## If no alpha was found, we use the mask to set alpha values
-        #win32gui.DrawIconEx(hdc, 0, 0, icon, w, h, 0, 0, win32con.DI_MASK)
-        #mask = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
+    ##for y in range(h):
+        ##if foundAlpha:
+            ##break
+        ##QRgb *scanLine= reinterpret_cast<QRgb *>(image.scanLine(y));
+        ##for (int x = 0; x < w ; x++) {
+            ##if (qAlpha(scanLine[x]) != 0) {
+                ##foundAlpha = true;
+                ##break;
+            ##}
+        ##}
+    ##}
+    ##if not foundAlpha):
+        ### If no alpha was found, we use the mask to set alpha values
+        ##win32gui.DrawIconEx(hdc, 0, 0, icon, w, h, 0, 0, win32con.DI_MASK)
+        ##mask = qt_fromWinHBITMAP(hdc, winBitmap, w, h)
 
-        #for y in range(h):
-            #QRgb *scanlineImage = reinterpret_cast<QRgb *>(image.scanLine(y));
-            #QRgb *scanlineMask = mask.isNull() ? 0 : reinterpret_cast<QRgb *>(mask.scanLine(y));
-            #for (int x = 0; x < w ; x++){
-                #if (scanlineMask && qRed(scanlineMask[x]) != 0)
-                    #scanlineImage[x] = 0; //mask out this pixel
-                #else
-                    #scanlineImage[x] |= 0xff000000; // set the alpha channel to 255
+        ##for y in range(h):
+            ##QRgb *scanlineImage = reinterpret_cast<QRgb *>(image.scanLine(y));
+            ##QRgb *scanlineMask = mask.isNull() ? 0 : reinterpret_cast<QRgb *>(mask.scanLine(y));
+            ##for (int x = 0; x < w ; x++){
+                ##if (scanlineMask && qRed(scanlineMask[x]) != 0)
+                    ##scanlineImage[x] = 0; //mask out this pixel
+                ##else
+                    ##scanlineImage[x] |= 0xff000000; // set the alpha channel to 255
 
-    # dispose resources created by iconinfo call
-    win32gui.DeleteObject(hbmMask)
-    win32gui.DeleteObject(hbmColor)
+    ## dispose resources created by iconinfo call
+    #win32gui.DeleteObject(hbmMask)
+    #win32gui.DeleteObject(hbmColor)
 
-    win32gui.SelectObject(hdc, oldhdc)  # restore state
-    win32gui.DeleteObject(winBitmap)
-    win32gui.DeleteDC(hdc)
-    return QPixmap.fromImage(image)
+    #win32gui.SelectObject(hdc, oldhdc)  # restore state
+    #win32gui.DeleteObject(winBitmap)
+    #win32gui.DeleteDC(hdc)
+    #return QPixmap.fromImage(image)
 
 
 class tagWINDOWINFO(Structure):
