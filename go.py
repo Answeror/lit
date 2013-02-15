@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from common import LitPlugin
-import win32gui
 import windows as winutils
 from datetime import datetime
 from utils import Query
@@ -10,8 +8,7 @@ from PyQt4.QtCore import (
     Qt,
     QAbstractListModel,
     QMutex,
-    QMutexLocker,
-    QObject
+    QMutexLocker
 )
 import itertools
 import logging
@@ -61,7 +58,7 @@ class Task(object):
 
     @property
     def name(self):
-        return _window_title(self.hwnd)
+        return winutils.window_title(self.hwnd)
 
     @property
     def icon(self):
@@ -104,12 +101,13 @@ class WindowModel(QAbstractListModel):
             return None
 
 
-class Go(LitPlugin):
+class Go(object):
 
-    def __init__(self, worker):
+    def __init__(self, worker, client):
         self.tasks = {}
         self.mutex = QMutex()
         self.worker = worker
+        self.client = client
 
     @property
     def name(self):
@@ -120,7 +118,7 @@ class Go(LitPlugin):
             make=lambda: WindowModel(
                 self.sorted_active_runnable(
                     query,
-                    _top_level_windows()
+                    winutils.top_level_windows()
                 )[:upper_bound]
             ),
             catch=finished,
@@ -183,30 +181,12 @@ class Go(LitPlugin):
             logging.info('wrong content type {}'.format(type(content)))
             return
 
-        for hwnd in _top_level_windows():
+        for hwnd in winutils.top_level_windows():
             if content.data(index, WindowModel.HWND_ROLE) == hwnd:
                 self._refresh_tasks([hwnd])
-                winutils.goto(hwnd=hwnd)
+                self.client.goto(hwnd=hwnd)
                 self.update_usetime(hwnd)
                 return
 
         # remove invalid tasks
         del self.tasks[content.data(index, WindowModel.HWND_ROLE)]
-
-
-def _top_level_windows():
-    """ Returns the top level windows in a list of hwnds."""
-    windows = []
-    win32gui.EnumWindows(_window_enum_top_level, windows)
-    return windows
-
-
-def _window_title(hwnd):
-    return win32gui.GetWindowText(hwnd)
-
-
-def _window_enum_top_level(hwnd, windows):
-    """ Window Enum function for getTopLevelWindows """
-    #if win32gui.GetParent(hwnd) == 0 and title != '':
-    if winutils.is_alt_tab_window(hwnd):
-        windows.append(hwnd)

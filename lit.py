@@ -14,7 +14,7 @@ See <http://www.pyinmyeye.com/2012/01/qt-48-modelview-read-only-table-view.html>
 '''
 
 
-from PyQt4.QtGui import (
+from qt.QtGui import (
     QApplication,
     QWidget,
     QLineEdit,
@@ -27,26 +27,24 @@ from PyQt4.QtGui import (
     QItemSelectionModel,
     QItemDelegate
 )
-from PyQt4.QtCore import (
+from qt.QtCore import (
     Qt,
     QEvent,
     QTimer,
-    QThread,
-    pyqtSignal,
     QAbstractItemModel,
     QModelIndex,
-    pyqtSlot,
     QMutex,
-    QMutexLocker
+    QMutexLocker,
+    QMetaObject,
+    Slot
 )
-Signal = pyqtSignal
-Slot = pyqtSlot
 from qt import QT_API, QT_API_PYQT
 
 import os
 import re
 import ctypes
 import logging
+from common import set_app_info
 
 from suggest import Suggest
 from worker import Worker
@@ -85,8 +83,23 @@ def parse_query(text):
 
 class Lit(QWidget):
 
-    def __init__(self, plugins=[]):
+    def __init__(self, worker, client):
         super(Lit, self).__init__()
+
+        self.worker = worker
+        self.client = client
+
+        from go import Go
+        from run import Run
+        #from recent import Recent
+        #from iciba import Iciba
+        #from f import F
+        #lit = Lit([Go(), Run(), Recent(), Iciba()])
+        plugins = [
+            Go(worker=worker, client=client),
+            Run(worker=worker, client=client)
+        ]
+
         lay = QVBoxLayout()
 
         # spacing of search box
@@ -111,10 +124,6 @@ class Lit(QWidget):
         self.mutex = QMutex()
 
         self.jobs = []
-
-        self.hotkey_thread = HotkeyThread()
-        self.hotkey_thread.fire.connect(self.handle_hotkey)
-        self.hotkey_thread.start()
 
         #sema = Semaphore(0)
         #self.sema = sema
@@ -178,9 +187,10 @@ class Lit(QWidget):
         #self.setWindowState(self.windowState() | Qt.WindowMinimized)
         self.hide()
 
+    @Slot()
     def show_window(self):
         self.show()
-        #QTimer.singleShot(100, lambda: windows.goto(hwnd(self)))
+        QTimer.singleShot(42, lambda: self.client.goto(hwnd(self)))
 
     def _install_plugins(self, plugins):
         self.plugins = {p.name: p for p in plugins}
@@ -189,11 +199,13 @@ class Lit(QWidget):
 
     def _setup_plugins(self):
         for p in self.plugins.values():
-            p.setup()
+            if hasattr(p, 'setup'):
+                p.setup()
 
     def _teardown_plugins(self):
         for p in self.plugins.values():
-            p.teardown()
+            if hasattr(p, 'teardown'):
+                p.teardown()
 
     def _try_query(self, text):
         """Avoid line editor frozen when key continues pressed."""
@@ -236,14 +248,8 @@ class Lit(QWidget):
 
     def act(self):
         if self.cmd == 'exit':
-            #self.event_listener.terminate()
-            #if self.event_processor.isRunning():
-                #self.event_processor.running = False
-                #self.sema.release()
-                #self.event_processor.wait()
-            self.hotkey_thread.stop()
-            self.hotkey_thread.wait()
             self._teardown_plugins()
+            self.client.stop()
             QApplication.quit()
         if self.cmd in self.plugins:
             self.plugins[self.cmd].act()
@@ -458,24 +464,17 @@ class Application(QApplication):
         return super(Application, self)
 
 
-class HotkeyThread(QThread):
-    """http://evenrain.com/pyside-detect-usb-device-plugin-and-remove/"""
+def start_server():
+    import subprocess as sp
+    import os
 
-    fire = Signal()
+    #root = r'C:\Program Files (x86)\lit'
+    root = ''
 
-    def __init__(self):
-        QThread.__init__(self)
-        from hotkey import Hotkey
-        self.hotkey = Hotkey(self.handle_hotkey)
-
-    def handle_hotkey(self):
-        self.fire.emit()
-
-    def stop(self):
-        self.hotkey.stop()
-
-    def run(self):
-        self.hotkey.start()
+    sp.call([
+        os.path.join(root, 'ele', 'elevate.cmd'),
+        os.path.join(root, 'litserver.exe')
+    ])
 
 
 if __name__ == '__main__':
@@ -485,14 +484,15 @@ if __name__ == '__main__':
         format='%(asctime)s - %(levelname)s - %(message)s',
         level=logging.DEBUG
     )
+    client = None
     try:
+        start_server()
+
         import sys
         argv = sys.argv
         app = Application(argv)
         STYLESHEET = 'style.css'
-        app.setOrganizationName('helanic')
-        app.setOrganizationDomain('answeror.com')
-        app.setApplicationName('lit')
+        set_app_info(app, 'lit')
         app.setQuitOnLastWindowClosed(False)
 
         # style
@@ -501,19 +501,30 @@ if __name__ == '__main__':
 
         worker = Worker()
 
-        from go import Go
-        from run import Run
-        #from recent import Recent
-        #from iciba import Iciba
-        #from f import F
-        #lit = Lit([Go(), Run(), Recent(), Iciba()])
-        lit = Lit([Go(worker), Run(worker)])
+        from client import Client
+        client = Client()
+        QMetaObject.invokeMethod(
+            client,
+            'start',
+            Qt.QueuedConnection
+        )
+
+        lit = Lit(worker, client)
         lit.show()
+        #QMetaObject.invokeMethod(
+            #lit,
+            #'show_window',
+            #Qt.QueuedConnection
+        #)
+
+        client.toggle.connect(lit.handle_hotkey)
 
         #return app.exec_()
         app.exec_()
     except Exception as e:
-        logging.error(e)
+        logging.exception(e)
+        if client:
+            client.stop()
 
 
 #if __name__ == '__main__':

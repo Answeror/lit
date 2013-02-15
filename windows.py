@@ -506,3 +506,21 @@ tagWINDOWINFO._fields_ = [
 WINDOWINFO = tagWINDOWINFO
 LPWINDOWINFO = POINTER(tagWINDOWINFO)
 PWINDOWINFO = POINTER(tagWINDOWINFO)
+
+
+def top_level_windows():
+    """ Returns the top level windows in a list of hwnds."""
+    windows = []
+    win32gui.EnumWindows(_window_enum_top_level, windows)
+    return windows
+
+
+def window_title(hwnd):
+    return win32gui.GetWindowText(hwnd)
+
+
+def _window_enum_top_level(hwnd, windows):
+    """ Window Enum function for getTopLevelWindows """
+    #if win32gui.GetParent(hwnd) == 0 and title != '':
+    if is_alt_tab_window(hwnd):
+        windows.append(hwnd)

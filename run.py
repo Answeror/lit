@@ -7,8 +7,8 @@ from files import Files
 
 class Run(Files):
 
-    def __init__(self, worker):
-        super(Run, self).__init__(worker)
+    def __init__(self, worker, **kargs):
+        super(Run, self).__init__(worker, **kargs)
         self._paths = []
         for path in os.environ['PATH'].split(os.pathsep):
             path = os.path.expandvars(path)

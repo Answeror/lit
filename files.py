@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-from common import LitPlugin
 from utils import Query
 import win32api
 from qt.QtGui import (
@@ -120,9 +119,9 @@ class RunnableModel(QAbstractListModel):
             return None
 
 
-class Files(LitPlugin):
+class Files(object):
 
-    def __init__(self, worker):
+    def __init__(self, worker, **kargs):
         super(Files, self).__init__()
         self.d = dict()
         self.mutex = QMutex()
