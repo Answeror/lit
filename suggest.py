@@ -9,7 +9,8 @@ from qt.QtGui import (
     QStringListModel,
     QItemSelectionModel,
     QListView,
-    QKeyEvent
+    QKeyEvent,
+    QScrollBar
 )
 from qt.QtCore import (
     Qt,
@@ -26,6 +27,13 @@ from qt.QtCore import (
 MAX_ITEM = 7
 
 
+class Bar(QScrollBar):
+
+    def setRange(self, min, max):
+        print(max)
+        super(Bar, self).setRange(min, max)
+
+
 class CenterListView(QListView):
     """Always scroll to center."""
 
@@ -35,22 +43,38 @@ class CenterListView(QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         #self.setRootIsDecorated(False)
         #self.setHeaderHidden(True)
+        #self.setVerticalScrollBar(Bar())
 
     def scrollTo(self, index, _):
         """Always scroll to center."""
         super(CenterListView, self).scrollTo(index, QAbstractItemView.PositionAtCenter)
 
-    def showEvent(self, e):
-        QTimer.singleShot(0, self._adjust_popup_height)
-        super(CenterListView, self).showEvent(e)
+    #def resizeEvent(self, e):
+        #QTimer.singleShot(0, self._adjust_popup_height)
+        ##self.setAttribute(Qt.WA_WState_ExplicitShowHide, True)
+        ##st = self.testAttribute(Qt.WA_WState_Hidden)
+        ##self.setAttribute(Qt.WA_WState_Hidden, False)
+        ##self._adjust_popup_height()
+        ##self.setAttribute(Qt.WA_WState_Hidden, st)
+        #super(CenterListView, self).resizeEvent(e)
 
-    def _adjust_popup_height(self):
-        if self.isVisible():
-            if self.model().rowCount(QModelIndex()) <= MAX_ITEM:
-                vsb = self.verticalScrollBar()
-                if vsb and vsb.isVisible():
-                    self.resize(self.width(), self.height() + 1)
-                    QTimer.singleShot(0, self._adjust_popup_height)
+    #def _adjust_popup_height(self):
+        ##self.ensurePolished()
+        ##self.updateGeometries()
+        #if self.model().rowCount(QModelIndex()) <= MAX_ITEM:
+            #vsb = self.verticalScrollBar()
+            ##if vsb and vsb.isVisible():
+            #if vsb:
+                ##print(self.height())
+                ##print("m: {}".format(self.maximumViewportSize().height()))
+                ##print("v: {}".format(self.viewport().height()))
+                #if vsb.maximum() > 0:
+                    #self.resize(self.width(), self.height() + 1)
+                    #QTimer.singleShot(0, self._adjust_popup_height)
+                #elif vsb.maximum() < 0:
+                    #self.resize(self.width(), self.height() - 1)
+                    #QTimer.singleShot(0, self._adjust_popup_height)
+                ##self._adjust_popup_height()
 
 
 class Suggest(QWidget):
@@ -214,8 +238,13 @@ class Suggest(QWidget):
         self.popup.scrollTo(first_index, QAbstractItemView.PositionAtCenter)
 
     def _resize_popup(self):
-        h = self.popup.sizeHintForRow(0) * min(MAX_ITEM, self.row_count)
+        h = sum([
+            self.popup.sizeHintForRow(0) * min(MAX_ITEM, self.row_count),
+            self.popup.contentsMargins().top(),
+            self.popup.contentsMargins().bottom()
+        ])
         self.popup.resize(self.editor.width(), h)
+        #self.popup._adjust_popup_height()
         #hsb = self.popup.horizontalScrollBar()
         #if hsb and hsb.isVisible():
             #h += hsb.sizeHint().height()

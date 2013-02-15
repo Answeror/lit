@@ -41,6 +41,7 @@ from PyQt4.QtGui import QPixmap, QImage
 from PyQt4.QtCore import Qt
 import logging
 import win32com.client
+import logging
 
 
 class tagTITLEBARINFO(Structure):
@@ -205,9 +206,10 @@ def _old(hwnd):
         ]:
             try:
                 fn(hwnd)
-            except:
-                pass
-
+            except Exception as e:
+                logging.error(str(e))
+    except Exception as e:
+        logging.error(str(e))
     finally:
         if attached:
             win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
