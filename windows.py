@@ -252,11 +252,12 @@ def is_alt_tab_window(hwnd):
         return False
 
     # the following removes some task tray programs and "Program Manager"
-    ti = TITLEBARINFO()
-    ti.cbSize = ctypes.sizeof(ti)
-    ctypes.windll.user32.GetTitleBarInfo(hwnd, ctypes.byref(ti))
-    if ti.rgstate[0] & win32con.STATE_SYSTEM_INVISIBLE:
-        return False
+    # but QQ and Thunder won't show either
+    #ti = TITLEBARINFO()
+    #ti.cbSize = ctypes.sizeof(ti)
+    #ctypes.windll.user32.GetTitleBarInfo(hwnd, ctypes.byref(ti))
+    #if ti.rgstate[0] & win32con.STATE_SYSTEM_INVISIBLE:
+        #return False
 
     # Tool windows should not be displayed either, these do not appear in the
     # task bar.
