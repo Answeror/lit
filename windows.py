@@ -191,12 +191,12 @@ def _old(hwnd):
         # to show window owned by admin process when running in user process
         # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
         # for details
-        if showCmd == SW_SHOWMINIMIZED:
-            #win32gui.ShowWindow(hwnd, SW_RESTORE)
-            win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE, 0)
+        if showCmd == win32con.SW_SHOWMINIMIZED:
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE, 0)
         else:
-            #win32gui.ShowWindow(hwnd, SW_SHOW)
-            win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
+            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+            #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
 
         for fn in [
             win32gui.BringWindowToTop,
@@ -262,7 +262,12 @@ def is_alt_tab_window(hwnd):
     # Tool windows should not be displayed either, these do not appear in the
     # task bar.
     if win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) & win32con.WS_EX_TOOLWINDOW:
-        return False
+        # for PotPlayer
+        if (
+            128 != win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) or
+            'Program Manager' == window_title(hwnd)
+        ):
+            return False
 
     pwi = WINDOWINFO()
     windll.user32.GetWindowInfo(hwnd, byref(pwi))
