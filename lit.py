@@ -454,16 +454,6 @@ class Input(QLineEdit):
         #completer.setWidget(self)
 
 
-class Application(QApplication):
-
-    def __init__(self, argv):
-        self.super.__init__(argv)
-
-    @property
-    def super(self):
-        return super(Application, self)
-
-
 def start_server():
     import subprocess as sp
     import os
@@ -490,7 +480,7 @@ if __name__ == '__main__':
 
         import sys
         argv = sys.argv
-        app = Application(argv)
+        app = QApplication(argv)
         STYLESHEET = 'style.css'
         set_app_info(app, 'lit')
         app.setQuitOnLastWindowClosed(False)

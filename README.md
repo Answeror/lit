@@ -1,6 +1,6 @@
 # Lit
 
-**version: 0.1.2**
+**version: 0.1.4**
 
 ## Introduction
 
@@ -12,40 +12,42 @@ Both task switching and launcher submodule use fuzzy search based on weighted Le
 
 **Task switching** using `\g` command or query directly (default mode is `\g`):
 
-![Task switch](http://dl.answeror.com/u/3450602/lit.go.png)\ 
+![Task switch](http://dl.answeror.com/u/3450602/lit.go.png)
 
 **Launcher** using `\r` command:
 
-![Launcher](http://dl.answeror.com/u/3450602/lit.run.png)\ 
+![Launcher](http://dl.answeror.com/u/3450602/lit.run.png)
 
 ## Install
 
 ### Requirements
 
-* Windows (only tested on win7 x64)
-* Python3
+* Windows (tested on win7 and win8 x64)
+* Python3 (Cx-Freeze does not work on `3.3`)
 * PyQt4
-* cx-Freeze
-* pywin32
-* [stream.py](http://github.com/Answeror/stream.py) (py3k version)
+* Cx-Freeze
+* Pywin32
+* WMI
 
 ### From binary
 
-Download [v0.1.2](http://dl.answeror.com/u/3450602/lit-0.1.2-win32.msi).
+[Download](http://code.google.com/p/yet-another-lit/downloads/list).
 
 After install, you may need manually create a shotcut of `lit.exe`.
 
 ### From source
 
-Install PyQt4, cx-Freeze, pywin32 is fairly easy (indeed some pain if you want install them in the virtualenv like me, but it is **possible**).
-
-For stream.py:
+Create a virtualenv first, then install WMI:
 
 ```
-pip install git+https://github.com/Answeror/stream.py.git
+pip install wmi
 ```
 
-And then clone this repo. Under the root folder:
+You can install cx-Freeze and pywin32 downloaded from [here](http://www.lfd.uci.edu/~gohlke/pythonlibs/) using easy_install.
+
+For PyQt4, you must install it globally and copy it and sip to virutalenv `site-package` folder manually, or compile it on your own.
+
+Clone this repo. Under the root folder:
 
 ```
 python setup.py bdist_msi
@@ -55,7 +57,7 @@ The `msi` installer will be created under `dist` folder.
 
 ## Usage
 
-Use `ALT`+`F` to toggle search box. Search text are make of two parts: command and query (optional, some command may haven't query part, like `\exit`), seperated by a space.
+Use `;;` to toggle search box (I'm a vimer, and accustomed to `jj`). Search text are make of two parts: command and query (optional, some command may haven't query part, like `\exit`), seperated by a space.
 
 Command can be:
 
@@ -64,3 +66,17 @@ Command can be:
 * `\exit`: as it says
 
 Default mode is `\g`, you can do task switch just without command part.
+
+Use:
+
+* arrow keys or `CTRL+J`/`CTRL+K` to navigate;
+* `ESC` to clear search box (when popup shown) or hide it.
+
+## Changelog
+
+### 0.1.4
+
+* New search algorithm, based on extended Levenshtein distance.
+* Client/Server structure to provide minimum UAC requirement.
+* Improved `\run` performance.
+* Unified sync and async job interface.
