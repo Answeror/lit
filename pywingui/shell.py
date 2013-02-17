@@ -67,3 +67,18 @@ class NOTIFYICONDATA(Structure):
 
 Shell_NotifyIcon = windll.shell32.Shell_NotifyIcon
 SHGetFolderPath = windll.shell32.SHGetFolderPathA
+
+#~ SHSTDAPI_(UINT) ExtractIconExA(LPCSTR lpszFile, int nIconIndex, __out_ecount_opt(nIcons) HICON *phiconLarge, __out_ecount_opt(nIcons) HICON *phiconSmall, UINT nIcons);
+#~ SHSTDAPI_(UINT) ExtractIconExW(LPCWSTR lpszFile, int nIconIndex, __out_ecount_opt(nIcons) HICON *phiconLarge, __out_ecount_opt(nIcons) HICON *phiconSmall, UINT nIcons);
+
+ExtractIcon = WINFUNCTYPE(c_void_p, c_void_p, c_wchar_p, c_uint)(('ExtractIconW', windll.shell32))
+_ExtractIconEx = WINFUNCTYPE(c_uint, c_wchar_p, c_int, c_void_p, c_void_p, c_uint)(('ExtractIconExW', windll.shell32))
+if not UNICODE:
+	ExtractIcon = WINFUNCTYPE(c_void_p, c_void_p, c_char_p, c_uint)(('ExtractIconA', windll.shell32))
+	_ExtractIconEx = WINFUNCTYPE(c_uint, c_char_p, c_int, c_void_p, c_void_p, c_uint)(('ExtractIconExA', windll.shell32))
+
+def ExtractIconEx(lpszFile, nIconIndex = 0, nIcons = 1):
+	phiconLarge = c_void_p()
+	phiconSmall = c_void_p()
+	result = _ExtractIconEx(lpszFile, nIconIndex, byref(phiconLarge), byref(phiconSmall), nIcons)
+	return result, phiconLarge, phiconSmall

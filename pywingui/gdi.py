@@ -310,6 +310,11 @@ CreateDIBSection = windll.gdi32.CreateDIBSection
 DeleteDC = windll.gdi32.DeleteDC
 GetDIBits = windll.gdi32.GetDIBits
 
+ExcludeClipRect = WINFUNCTYPE(c_int, c_void_p, c_int, c_int, c_int, c_int)(('ExcludeClipRect', windll.gdi32))
+IntersectClipRect = WINFUNCTYPE(c_int, c_void_p, c_int, c_int, c_int, c_int)(('IntersectClipRect', windll.gdi32))
+
+GetBkColor = WINFUNCTYPE(COLORREF, c_void_p)(('GetBkColor', windll.gdi32))
+
 SetTextColor = WINFUNCTYPE(COLORREF, c_void_p, COLORREF)(('SetTextColor', windll.gdi32))
 if WINVER >= 0x0500:
 	SetDCBrushColor = WINFUNCTYPE(COLORREF, c_void_p, COLORREF)(('SetDCBrushColor', windll.gdi32))
@@ -350,9 +355,9 @@ def GetWorldTransform(hdc):
 	return result, lpXform
 SetWorldTransform = WINFUNCTYPE(c_bool, c_void_p, LPXFORM)(('SetWorldTransform', windll.gdi32))
 SetWorldTransform.__doc__ = 'Sets a two-dimensional linear transformation between world space and page space for the specified device context. This transformation can be used to scale, rotate, shear, or translate graphics output.'
-#~ WINGDIAPI BOOL WINAPI ModifyWorldTransform( __in HDC hdc, __in_opt CONST XFORM * lpxf, __in DWORD mode);
-#~ WINGDIAPI BOOL WINAPI CombineTransform( __out LPXFORM lpxfOut, __in CONST XFORM *lpxf1, __in CONST XFORM *lpxf2);
-#~ WINGDIAPI HBITMAP WINAPI CreateDIBSection(__in_opt HDC hdc, __in CONST BITMAPINFO *lpbmi, __in UINT usage, __deref_opt_out VOID **ppvBits, __in_opt HANDLE hSection, __in DWORD offset);
+ModifyWorldTransform = WINFUNCTYPE(c_bool, c_void_p, LPXFORM, c_ulong)(('ModifyWorldTransform', windll.gdi32))
+CombineTransform = WINFUNCTYPE(c_bool, LPXFORM, LPXFORM, LPXFORM)(('CombineTransform', windll.gdi32))
+CreateDIBSection = WINFUNCTYPE(c_void_p, c_void_p, POINTER(BITMAPINFO), c_uint, c_void_p, c_void_p, c_ulong)(('CreateDIBSection', windll.gdi32))
 
 # Paths
 AbortPath = WINFUNCTYPE(c_bool, c_void_p)(('AbortPath', windll.gdi32))
@@ -447,7 +452,6 @@ class Bitmap(WindowsObject):
         return self.m_height
 
     height = property(getHeight, None, None, "")
-        
 
 
 #TODO refactor into Brush class with static factory class methods

@@ -23,6 +23,7 @@ from pywingui.windows import *
 from pywingui.wtl import *
 from pywingui import comctl
 from pywingui import gdi
+from pywingui.winuser import WNDENUMPROC, GetForegroundWindow, GetClientRect
 
 from . import menu
 
@@ -250,7 +251,6 @@ class Form(Window):
 						 lambda self, event: self.DoLayout(*self.clientRect.size)),
 						 ])
 
-
 class CMD_UI_UPDATE(object):
 	"""This msp map handler is used to update cmd ui elements"""
 	def __init__(self, id, handler):
@@ -262,3 +262,59 @@ class CMD_UI_UPDATE(object):
 
 	def __call__(self, receiver, event):
 		self.handler(receiver, event)
+
+
+class ClientForm(Window):
+	'''A class representing client window with child windows.
+	This form can be send to other window, for example on notebook(tab control) page.'''
+	_window_style_ = WS_VISIBLE | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
+	_window_style_ex_ = WS_EX_CLIENTEDGE
+	_window_background_ = gdi.GetStockObject(gdi.LTGRAY_BRUSH)
+	#~ _window_dbg_msg_ = True
+	#~ enum_child_proc = winuser.WNDENUMPROC(EnumChildProc)
+	_childs_ = []
+
+	def __init__(self, *args, **kwargs):
+		Window.__init__(self, *args, **kwargs)
+		self.m_interceptor = self.Intercept(self.GetParent(), self._msg_map_)
+		self.enum_child_proc = WNDENUMPROC(self.EnumChildProc)
+
+	#~ def dispose(self):
+		#~ self.m_interceptor.dispose()
+		#~ del self.m_interceptor
+		#~ del self._childs_
+
+	def add(self, wnd):
+		self._childs_.append(wnd)
+
+	def EnumChildProc(self, hWnd, lParam):
+		'must be custom replaced as valid'
+		x, y = GET_XY_LPARAM(lParam)
+		rc = RECT()
+		GetClientRect(hWnd, byref(rc))
+		#~ parent_rc = self.GetClientRect()
+		child.MoveWindow(rc.left, rc.top, x, y, True)
+		#ShowWindow(hWnd, SW_SHOW)
+		return True
+
+	def DoLayout(self, size):
+		#~ if not hasattr(self, 'enum_child_proc'):
+			#~ self.enum_child_proc = WNDENUMPROC(self.EnumChildProc)
+		#~ if not winuser.EnumChildWindows(self.handle, self.enum_child_proc, size):
+			#~ print(FormatError())
+		rc = self.GetClientRect()
+		pl, pt, pw, ph = rc.left, rc.top, rc.width, rc.height
+		for wnd, wrc in self._childs_:
+			l, t, w, h = wrc[0] + pl, wrc[1] + pt, wrc[2], wrc[3]
+			if w <= 0:
+				w = pw - l - 5
+			if h <= 0:
+				h = 20
+			wnd.MoveWindow(l, t, w, h, True)
+			#~ wnd.ShowWindow(SW_SHOW)
+
+	def OnSize(self, event):
+		if len(self._childs_):
+			self.DoLayout(event.lParam)
+
+	msg_handler(WM_SIZE)(OnSize)

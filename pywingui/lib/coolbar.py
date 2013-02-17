@@ -21,6 +21,7 @@
 
 from pywingui.windows import *
 from pywingui.comctl import *
+from pywingui.sdkddkver import _WIN32_IE, _WIN32_WINNT
 
 WM_TRACK = WM_USER + 1
 
@@ -214,11 +215,11 @@ class CoolBar(Rebar):
 		rbBand = REBARBANDINFO()
 		rbBand.cbSize = sizeof(REBARBANDINFO)
 
+		rbBand.fMask = RBBIM_CHILD | RBBIM_CHILDSIZE | RBBIM_STYLE | RBBIM_ID | RBBIM_SIZE
 		if WIN32_IE >= 0x0400:
-			rbBand.fMask = RBBIM_CHILD | RBBIM_CHILDSIZE | RBBIM_STYLE | RBBIM_ID | RBBIM_SIZE\
-						   | RBBIM_IDEALSIZE
-		else:
-			rbBand.fMask = RBBIM_CHILD | RBBIM_CHILDSIZE | RBBIM_STYLE | RBBIM_ID | RBBIM_SIZE
+			rbBand.fMask |= RBBIM_IDEALSIZE
+		#~ if _WIN32_WINNT >= 0x0600:
+			#~ rbBand.fMask |= RBBIM_CHEVRONLOCATION | RBBIM_CHEVRONSTATE
 
 		if title != NULL:
 			rbBand.fMask |= RBBIM_TEXT

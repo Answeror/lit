@@ -21,8 +21,8 @@
 
 from .windows import *
 from .wtl import *
-from .sdkddkver import _WIN32_IE, NTDDI_VERSION, NTDDI_LONGHORN
-from .winuser import SetWindowText
+from .sdkddkver import _WIN32_IE, _WIN32_WINNT, NTDDI_VERSION, NTDDI_LONGHORN
+from .winuser import IMAGE_BITMAP, SetWindowText
 
 ATL_IDW_BAND_FIRST = 0xEB00
 HTREEITEM = HANDLE
@@ -81,6 +81,8 @@ LVIF_PARAM  = 4
 LVIF_STATE  = 8
 LVIF_DI_SETITEM =  0x1000
 
+CBEMAXSTRLEN = 260
+
 class MaskedStructureType(Structure.__class__):
 	def __new__(cls, name, bases, dct):
 		fields = []
@@ -102,174 +104,209 @@ class MaskedStructure(Structure, metaclass=MaskedStructureType):
 		setattr(self, self._mask_, 0)
 
 class NMCBEENDEDIT(Structure):
-	_fields_ = [("hdr", NMHDR),
-				("fChanged", BOOL),
-				("iNewSelection", INT),
-				("szText", POINTER(TCHAR)),
-				("iWhy", INT)]
+	_fields_ = [('hdr', NMHDR),
+	('fChanged', BOOL),
+	('iNewSelection', INT)]
+	if UNICODE:
+		_fields_ += [('szText', c_wchar_p * CBEMAXSTRLEN), ('iWhy', INT)]
+	else:
+		_fields_ += [('szText', c_char_p * CBEMAXSTRLEN), ('iWhy', INT)]
 
 class LVCOLUMN(MaskedStructure):
 	_mask_ = 'mask'
-	_fields_ = [("mask", UINT),
-				("fmt", INT, LVCF_FMT, "format"),
-				("cx", INT, LVCF_WIDTH, 'width'),
-				("pszText", LPTSTR, LVCF_TEXT, 'text'),
-				("cchTextMax", INT),
-				("iSubItem", INT),
-				("iImage", INT),
-				("iOrder", INT)]
+	_fields_ = [('mask', UINT),
+	('fmt', INT, LVCF_FMT, 'format'),
+	('cx', INT, LVCF_WIDTH, 'width')]
+	if UNICODE:
+		_fields_.append(('pszText', c_wchar_p, LVCF_TEXT, 'text'))
+	else:
+		_fields_.append(('pszText', c_char_p, LVCF_TEXT, 'text'))
+	_fields_ += [('cchTextMax', INT),
+	('iSubItem', INT),
+	('iImage', INT),
+	('iOrder', INT)]
 
 class LVITEM(Structure):
-	_fields_ = [("mask", UINT),
-				("iItem", INT),
-				("iSubItem", INT),
-				("state", UINT),
-				("stateMask", UINT),
-				("pszText", LPTSTR),
-				("cchTextMax", INT),
-				("iImage", INT),
-				("lParam", LPARAM),
-				("iIndent", INT)]
+	_fields_ = [('mask', UINT),
+	('iItem', INT),
+	('iSubItem', INT),
+	('state', UINT),
+	('stateMask', UINT)]
+	if UNICODE:
+		_fields_.append(('pszText', c_wchar_p))
+	else:
+		_fields_.append(('pszText', c_char_p))
+	_fields_ += [('cchTextMax', INT),
+	('iImage', INT),
+	('lParam', LPARAM),
+	('iIndent', INT)]
 
 class TVITEMEX(MaskedStructure):
 	_mask_ = 'mask'
-	_fields_ = [("mask", UINT),
-				("hItem", HTREEITEM),
-				("state", UINT),
-				("stateMask", UINT),
-				("pszText", LPTSTR, TVIF_TEXT, 'text'),
-				("cchTextMax", INT),
-				("iImage", INT, TVIF_IMAGE, 'image'),
-				("iSelectedImage", INT, TVIF_SELECTEDIMAGE, 'selectedImage'),
-				("cChildren", INT, TVIF_CHILDREN, 'children'),
-				("lParam", LPARAM, TVIF_PARAM, 'param'),
-				("iIntegral", INT)]
+	_fields_ = [('mask', UINT),
+	('hItem', HTREEITEM),
+	('state', UINT),
+	('stateMask', UINT)]
+	if UNICODE:
+		_fields_.append(('pszText', c_wchar_p, TVIF_TEXT, 'text'))
+	else:
+		_fields_.append(('pszText', c_char_p, TVIF_TEXT, 'text'))
+	_fields_ += [('cchTextMax', INT),
+	('iImage', INT, TVIF_IMAGE, 'image'),
+	('iSelectedImage', INT, TVIF_SELECTEDIMAGE, 'selectedImage'),
+	('cChildren', INT, TVIF_CHILDREN, 'children'),
+	('lParam', LPARAM, TVIF_PARAM, 'param'),
+	('iIntegral', INT)]
 
 class TVITEM(Structure):
-	_fields_ = [("mask", UINT),
-				("hItem", HTREEITEM),
-				("state", UINT),
-				("stateMask", UINT),
-				("pszText", LPTSTR),
-				("cchTextMax", INT),
-				("iImage", INT),
-				("iSelectedImage", INT),
-				("cChildren", INT),
-				("lParam", LPARAM)]
+	_fields_ = [('mask', UINT),
+	('hItem', HTREEITEM),
+	('state', UINT),
+	('stateMask', UINT)]
+	if UNICODE:
+		_fields_.append(('pszText', c_wchar_p))
+	else:
+		_fields_.append(('pszText', c_char_p))
+	_fields_ += [('cchTextMax', INT),
+	('iImage', INT),
+	('iSelectedImage', INT),
+	('cChildren', INT),
+	('lParam', LPARAM)]
 
 class TBBUTTON(Structure):
-	_fields_ = [("iBitmap", INT),
-				("idCommand", INT),
-				("fsState", BYTE),
-				("fsStyle", BYTE),
-				("bReserved", BYTE * 2),
-				("dwData", DWORD_PTR),
-				("iString", INT_PTR)]
+	_fields_ = [('iBitmap', INT),
+	('idCommand', INT),
+	('fsState', BYTE),
+	('fsStyle', BYTE),
+	('bReserved', BYTE * 2),
+	('dwData', DWORD_PTR),
+	('iString', INT_PTR)]
 
 class TBBUTTONINFO(Structure):
-	_fields_ = [("cbSize", UINT),
-				("dwMask", DWORD),
-				("idCommand", INT),
-				("iImage", INT),
-				("fsState", BYTE),
-				("fsStyle", BYTE),
-				("cx", WORD),
-				("lParam", DWORD_PTR),
-				("pszText", LPTSTR),
-				("cchText", INT)]
+	_fields_ = [('cbSize', UINT),
+	('dwMask', DWORD),
+	('idCommand', INT),
+	('iImage', INT),
+	('fsState', BYTE),
+	('fsStyle', BYTE),
+	('cx', WORD),
+	('lParam', DWORD_PTR)]
+	if UNICODE:
+		_fields_ += [('pszText', c_wchar_p), ('cchText', INT)]
+	else:
+		_fields_ += [('pszText', c_char_p), ('cchText', INT)]
 
 class TVINSERTSTRUCT(Structure):
-	_fields_ = [("hParent", HTREEITEM),
-				("hInsertAfter", HTREEITEM),
-				("itemex", TVITEMEX)]
+	_fields_ = [('hParent', HTREEITEM),
+	('hInsertAfter', HTREEITEM),
+	('itemex', TVITEMEX)]
 
 class TCITEM(Structure):
-	_fields_ = [("mask", UINT),
-				("dwState", DWORD),
-				("dwStateMask", DWORD),
-				("pszText", LPTSTR),
-				("cchTextMax", INT),
-				("iImage", INT),
-				("lParam", LPARAM)]
+	_fields_ = [('mask', UINT),
+	('dwState', DWORD),
+	('dwStateMask', DWORD)]
+	if UNICODE:
+		_fields_.append(('pszText', c_wchar_p))
+	else:
+		_fields_.append(('pszText', c_char_p))
+	_fields_ += [('cchTextMax', INT),
+	('iImage', INT),
+	('lParam', LPARAM)]
 
 class NMTREEVIEW(Structure):
-	_fields_ = [("hdr", NMHDR),
-				("action", UINT),
-				("itemOld", TVITEM),
-				("itemNew", TVITEM),
-				("ptDrag", POINT)]
+	_fields_ = [('hdr', NMHDR),
+	('action', UINT),
+	('itemOld', TVITEM),
+	('itemNew', TVITEM),
+	('ptDrag', POINT)]
 
 class NMLISTVIEW(Structure):
-	_fields_ = [("hrd", NMHDR),
-				("iItem", INT),
-				("iSubItem", INT),
-				("uNewState", UINT),
-				("uOldState", UINT),
-				("uChanged", UINT),
-				("ptAction", POINT),
-				("lParam", LPARAM)]
+	_fields_ = [('hrd', NMHDR),
+	('iItem', INT),
+	('iSubItem', INT),
+	('uNewState', UINT),
+	('uOldState', UINT),
+	('uChanged', UINT),
+	('ptAction', POINT),
+	('lParam', LPARAM)]
 
 class INITCOMMONCONTROLSEX(Structure):
-	_fields_ = [("dwSize", DWORD),
-				("dwICC", DWORD)]
+	_fields_ = [('dwSize', DWORD), ('dwICC', DWORD)]
 
 class REBARINFO(Structure):
-	_fields_ = [("cbSize", UINT),
-				("fMask", UINT),
-				("himl", HIMAGELIST)]
+	_fields_ = [('cbSize', UINT),
+	('fMask', UINT),
+	('himl', HIMAGELIST)]
 
 class REBARBANDINFO(Structure):
-	_fields_ = [("cbSize", UINT),
-				("fMask", UINT),
-				("fStyle", UINT),
-				("clrFore", COLORREF),
-				("clrBack", COLORREF),
-				("lpText", LPTSTR),
-				("cch", UINT),
-				("iImage", INT),
-				("hwndChild", HWND),
-				("cxMinChild", UINT),
-				("cyMinChild", UINT),
-				("cx", UINT),
-				("hbmBack", HBITMAP),
-				("wID", UINT),
-				("cyChild", UINT),
-				("cyMaxChild", UINT),
-				("cyIntegral", UINT),
-				("cxIdeal", UINT),
-				("lParam", LPARAM),
-				("cxHeader", UINT)]
+	_fields_ = [('cbSize', UINT),
+	('fMask', UINT),
+	('fStyle', UINT),
+	('clrFore', COLORREF),
+	('clrBack', COLORREF)]
+	if UNICODE:
+		_fields_.append(('lpText', c_wchar_p))
+	else:
+		_fields_.append(('lpText', c_char_p))
+	_fields_ += [('cch', UINT),
+	('iImage', INT),
+	('hwndChild', HWND),
+	('cxMinChild', UINT),
+	('cyMinChild', UINT),
+	('cx', UINT),
+	('hbmBack', HBITMAP),
+	('wID', UINT),
+	('cyChild', UINT),
+	('cyMaxChild', UINT),
+	('cyIntegral', UINT),
+	('cxIdeal', UINT),
+	('lParam', LPARAM),
+	('cxHeader', UINT)]
 
 class NMTOOLBAR(Structure):
-	_fields_ = [("hdr", NMHDR),
-				("iItem", INT),
-				("tbButton", TBBUTTON),
-				("cchText", INT),
-				("pszText", LPTSTR),
-				("rcButton", RECT)]
+	_fields_ = [('hdr', NMHDR),
+	('iItem', INT),
+	('tbButton', TBBUTTON),
+	('cchText', INT),
+	('pszText', LPTSTR),
+	('rcButton', RECT)]
 
 class NMTBHOTITEM(Structure):
-	_fields_ = [("hdr", NMHDR),
-				("idOld", INT),
-				("idNew", INT),
-				("dwFlags", DWORD)]
+	_fields_ = [('hdr', NMHDR),
+	('idOld', INT),
+	('idNew', INT),
+	('dwFlags', DWORD)]
+
+class TBADDBITMAP(Structure):
+	_fields_ = [('hInst', c_void_p), ('nID', c_void_p)]
 
 class PBRANGE(Structure):
-	_fields_ = [("iLow", INT),
-				("iHigh", INT)]
+	_fields_ = [('iLow', INT), ('iHigh', INT)]
 
 class NMITEMACTIVATE(Structure):
-	_fields_ = [("hdr", NMHDR),
-				("iItem", c_int),
-				("iSubItem", c_int),
-				("uNewState", UINT),
-				("uOldState", UINT),
-				("uChanged", UINT),
-				("ptAction", POINT),
-				("lParam", LPARAM),
-				("uKeyFlags", UINT)]
+	_fields_ = [('hdr', NMHDR),
+	('iItem', c_int),
+	('iSubItem', c_int),
+	('uNewState', UINT),
+	('uOldState', UINT),
+	('uChanged', UINT),
+	('ptAction', POINT),
+	('lParam', LPARAM),
+	('uKeyFlags', UINT)]
 
-NM_FIRST    =   UINT_MAX
+class LVHITTESTINFO(Structure):
+	_fields_ = [('pt', POINT),
+	('flags', c_uint),
+	('iItem', c_int),
+	('iSubItem', c_int)]
+	if _WIN32_WINNT >= 0x0600:
+		_fields_.append(('iGroup', c_int))
+	def __repr__(self):
+		return self.__str__()
+	def __str__(self):
+		return '%s %d %d %d' % (repr(self.pt), self.flags, self.iItem, self.iSubItem)
+
+NM_FIRST = UINT_MAX
 
 SBS_BOTTOMALIGN = 4
 SBS_HORZ = 0
@@ -282,10 +319,19 @@ SBS_SIZEGRIP = 16
 SBS_TOPALIGN = 2
 SBS_VERT = 1
 
-CCS_NODIVIDER =	64
-CCS_NOPARENTALIGN = 8
-CCS_NORESIZE = 4
-CCS_TOP = 1
+#====== COMMON CONTROL STYLES
+CCS_TOP = 0x00000001
+CCS_NOMOVEY = 0x00000002
+CCS_BOTTOM = 0x00000003
+CCS_NORESIZE = 0x00000004
+CCS_NOPARENTALIGN = 0x00000008
+CCS_ADJUSTABLE = 0x00000020
+CCS_NODIVIDER = 0x00000040
+if _WIN32_IE >= 0x0300:
+	CCS_VERT = 0x00000080
+	CCS_LEFT = (CCS_VERT | CCS_TOP)
+	CCS_RIGHT = (CCS_VERT | CCS_BOTTOM)
+	CCS_NOMOVEX = (CCS_VERT | CCS_NOMOVEY)
 
 RBBS_BREAK     = 0x00000001 # break to new line
 RBBS_FIXEDSIZE = 0x00000002 # band can't be sized
@@ -324,55 +370,78 @@ TBSTYLE_REGISTERDROP = 0x4000
 TBSTYLE_BUTTON = 0x0000
 TBSTYLE_AUTOSIZE = 0x0010
 
-TB_BUTTONSTRUCTSIZE = WM_USER+30
-TB_ADDBUTTONS       = WM_USER+20
-TB_INSERTBUTTONA    = WM_USER + 21
-TB_INSERTBUTTON     = WM_USER + 21
-TB_BUTTONCOUNT      = WM_USER + 24
-TB_GETITEMRECT      = WM_USER + 29
-TB_SETBUTTONINFOW  =  WM_USER + 64
-TB_SETBUTTONINFOA  =  WM_USER + 66
-TB_SETBUTTONINFO   =  TB_SETBUTTONINFOA
-TB_SETIMAGELIST    =  WM_USER + 48
-TB_SETDRAWTEXTFLAGS =  WM_USER + 70
-TB_PRESSBUTTON       = WM_USER + 3
-TB_GETRECT        =      (WM_USER + 51)
-TB_SETHOTITEM   =        (WM_USER + 72)
-TB_HITTEST     =         (WM_USER + 69)
-TB_GETHOTITEM  =         (WM_USER + 7)
-TB_SETBUTTONSIZE     =  (WM_USER + 31)
-TB_AUTOSIZE          =  (WM_USER + 33)
+TB_BUTTONSTRUCTSIZE = WM_USER + 30
+TB_ADDBUTTONS = WM_USER + 20
 
-TVIF_TEXT    = 1
-TVIF_IMAGE   =2
-TVIF_PARAM   =4
-TVIF_STATE   =8
+TB_SETBUTTONINFO = WM_USER + 64
+TB_INSERTBUTTON = WM_USER + 67
+TB_ADDSTRING = WM_USER + 77
+if not UNICODE:
+	TB_INSERTBUTTON = WM_USER + 21
+	TB_ADDSTRING = WM_USER + 28
+	TB_SETBUTTONINFO = WM_USER + 66
+
+
+TB_ENABLEBUTTON = WM_USER + 1
+TB_CHECKBUTTON = WM_USER + 2
+TB_PRESSBUTTON = WM_USER + 3
+TB_HIDEBUTTON = WM_USER + 4
+TB_INDETERMINATE = WM_USER + 5
+if _WIN32_IE >= 0x0400:
+	TB_MARKBUTTON = WM_USER + 6
+TB_ISBUTTONENABLED = WM_USER + 9
+TB_ISBUTTONCHECKED = WM_USER + 10
+TB_ISBUTTONPRESSED = WM_USER + 11
+TB_ISBUTTONHIDDEN = WM_USER + 12
+TB_ISBUTTONINDETERMINATE = WM_USER + 13
+if _WIN32_IE >= 0x0400:
+	TB_ISBUTTONHIGHLIGHTED = WM_USER + 14
+TB_SETSTATE = WM_USER + 17
+TB_GETSTATE = WM_USER + 18
+TB_ADDBITMAP = WM_USER + 19
+
+TB_BUTTONCOUNT = WM_USER + 24
+TB_GETITEMRECT = WM_USER + 29
+TB_SETIMAGELIST = WM_USER + 48
+TB_SETDRAWTEXTFLAGS = WM_USER + 70
+TB_PRESSBUTTON = WM_USER + 3
+TB_GETRECT = WM_USER + 51
+TB_SETHOTITEM = WM_USER + 72
+TB_HITTEST = WM_USER + 69
+TB_GETHOTITEM = WM_USER + 7
+TB_SETBUTTONSIZE = WM_USER + 31
+TB_AUTOSIZE = WM_USER + 33
+
+TVIF_TEXT = 1
+TVIF_IMAGE = 2
+TVIF_PARAM = 4
+TVIF_STATE = 8
 TVIF_HANDLE = 16
-TVIF_SELECTEDIMAGE  = 32
-TVIF_CHILDREN      =  64
-TVIF_INTEGRAL      =  0x0080
-TVIF_DI_SETITEM    =  0x1000
+TVIF_SELECTEDIMAGE = 32
+TVIF_CHILDREN = 64
+TVIF_INTEGRAL = 0x0080
+TVIF_DI_SETITEM = 0x1000
 
-TVI_ROOT     = 0xFFFF0000
-TVI_FIRST    = 0xFFFF0001
-TVI_LAST     = 0xFFFF0002
-TVI_SORT     = 0xFFFF0003
+TVI_ROOT = 0xFFFF0000
+TVI_FIRST = 0xFFFF0001
+TVI_LAST = 0xFFFF0002
+TVI_SORT = 0xFFFF0003
 
-TVGN_CHILD   =  4
-TVGN_NEXT    =  1
-TVGN_ROOT    =  0
-TVGN_CARET   =           0x0009
+TVGN_CHILD = 4
+TVGN_NEXT = 1
+TVGN_ROOT = 0
+TVGN_CARET = 0x0009
 
 TVIS_FOCUSED = 1
-TVIS_SELECTED =       2
-TVIS_CUT    = 4
-TVIS_DROPHILITED   =  8
-TVIS_BOLD  =  16
-TVIS_EXPANDED      =  32
-TVIS_EXPANDEDONCE  =  64
-TVIS_OVERLAYMASK   =  0xF00
+TVIS_SELECTED = 2
+TVIS_CUT = 4
+TVIS_DROPHILITED = 8
+TVIS_BOLD = 16
+TVIS_EXPANDED = 32
+TVIS_EXPANDEDONCE = 64
+TVIS_OVERLAYMASK = 0xF00
 TVIS_STATEIMAGEMASK = 0xF000
-TVIS_USERMASK      =  0xF000
+TVIS_USERMASK = 0xF000
 
 TV_FIRST = 0x1100
 TVM_INSERTITEMA =     TV_FIRST
@@ -415,19 +484,19 @@ CBEN_ENDEDITW = CBEN_FIRST - 6
 CBEN_ENDEDIT = CBEN_ENDEDITA
 
 # trackbar styles
-TBS_AUTOTICKS =           0x0001
-TBS_VERT =                0x0002
-TBS_HORZ =                0x0000
-TBS_TOP =                 0x0004
-TBS_BOTTOM =              0x0000
-TBS_LEFT =                0x0004
-TBS_RIGHT =               0x0000
-TBS_BOTH =                0x0008
-TBS_NOTICKS =             0x0010
-TBS_ENABLESELRANGE =      0x0020
-TBS_FIXEDLENGTH =         0x0040
-TBS_NOTHUMB =             0x0080
-TBS_TOOLTIPS =            0x0100
+TBS_AUTOTICKS = 0x0001
+TBS_VERT = 0x0002
+TBS_HORZ = 0x0000
+TBS_TOP = 0x0004
+TBS_BOTTOM = 0x0000
+TBS_LEFT = 0x0004
+TBS_RIGHT = 0x0000
+TBS_BOTH = 0x0008
+TBS_NOTICKS = 0x0010
+TBS_ENABLESELRANGE = 0x0020
+TBS_FIXEDLENGTH = 0x0040
+TBS_NOTHUMB = 0x0080
+TBS_TOOLTIPS = 0x0100
 if WINVER >= 0x0500:
 	TBS_REVERSED = 0x0200 # Accessibility hint: the smaller number (usually the min value) means "high" and the larger number (usually the max value) means "low"
 if WINVER >= 0x0501:
@@ -476,20 +545,20 @@ if WINVER >= 0x0400:
 	TBM_GETUNICODEFORMAT = CCM_GETUNICODEFORMAT
 
 # trackbar top-side flags
-TBTS_TOP =                0
-TBTS_LEFT =               1
-TBTS_BOTTOM =             2
-TBTS_RIGHT =              3
+TBTS_TOP = 0
+TBTS_LEFT = 1
+TBTS_BOTTOM = 2
+TBTS_RIGHT = 3
 
-TB_LINEUP =               0
-TB_LINEDOWN =             1
-TB_PAGEUP =               2
-TB_PAGEDOWN =             3
-TB_THUMBPOSITION =        4
-TB_THUMBTRACK =           5
-TB_TOP =                  6
-TB_BOTTOM =               7
-TB_ENDTRACK =             8
+TB_LINEUP = 0
+TB_LINEDOWN = 1
+TB_PAGEUP = 2
+TB_PAGEDOWN = 3
+TB_THUMBPOSITION = 4
+TB_THUMBTRACK = 5
+TB_TOP = 6
+TB_BOTTOM = 7
+TB_ENDTRACK = 8
 
 # trackbar custom draw item specs
 TBCD_TICS =    0x0001
@@ -500,46 +569,64 @@ TRBN_THUMBPOSCHANGING = 1500
 
 STATUSCLASSNAME = "msctls_statusbar32"
 
-REBARCLASSNAMEW = "ReBarWindow32"
-REBARCLASSNAMEA = "ReBarWindow32"
-REBARCLASSNAME = REBARCLASSNAMEA
+REBARCLASSNAMEA = type_str('ReBarWindow32')
+REBARCLASSNAMEW = type_unicode('ReBarWindow32')
+REBARCLASSNAME = REBARCLASSNAMEW
+if not UNICODE:
+	REBARCLASSNAME = REBARCLASSNAMEA
 
-PROGRESS_CLASSW = "msctls_progress32"
-PROGRESS_CLASSA = "msctls_progress32"
-PROGRESS_CLASS = PROGRESS_CLASSA
+PROGRESS_CLASSA = type_str('msctls_progress32')
+PROGRESS_CLASSW = type_unicode('msctls_progress32')
+PROGRESS_CLASS = PROGRESS_CLASSW
+if not UNICODE:
+	PROGRESS_CLASS = PROGRESS_CLASSA
 
-TRACKBAR_CLASSW = "msctls_trackbar32"
-TRACKBAR_CLASSA = "msctls_trackbar32"
-TRACKBAR_CLASS = TRACKBAR_CLASSA
+TRACKBAR_CLASSA = type_str('msctls_trackbar32')
+TRACKBAR_CLASSW = type_unicode('msctls_trackbar32')
+TRACKBAR_CLASS = TRACKBAR_CLASSW
+if not UNICODE:
+	TRACKBAR_CLASS = TRACKBAR_CLASSA
 
 WC_EDIT = "Edit"
 BUTTON = "BUTTON"
 
 WC_STATIC = 'Static'
 
-WC_COMBOBOXW = "ComboBox"
-WC_COMBOBOXA = "ComboBox"
-WC_COMBOBOX = WC_COMBOBOXA
+WC_COMBOBOXA = type_str('ComboBox')
+WC_COMBOBOXW = type_unicode('ComboBox')
+WC_COMBOBOX = WC_COMBOBOXW
+if not UNICODE:
+	WC_COMBOBOX = WC_COMBOBOXA
 
-WC_COMBOBOXEXW = "ComboBoxEx32"
-WC_COMBOBOXEXA = "ComboBoxEx32"
-WC_COMBOBOXEX = WC_COMBOBOXEXA
+WC_COMBOBOXEXA = type_str('ComboBoxEx32')
+WC_COMBOBOXEXW = type_unicode('ComboBoxEx32')
+WC_COMBOBOXEX = WC_COMBOBOXEXW
+if not UNICODE:
+	WC_COMBOBOXEX = WC_COMBOBOXEXA
 
-WC_TREEVIEWA = "SysTreeView32"
-WC_TREEVIEWW = "SysTreeView32"
-WC_TREEVIEW = WC_TREEVIEWA
+WC_TREEVIEWA = type_str('SysTreeView32')
+WC_TREEVIEWW = type_unicode('SysTreeView32')
+WC_TREEVIEW = WC_TREEVIEWW
+if not UNICODE:
+	WC_TREEVIEW = WC_TREEVIEWA
 
-WC_LISTVIEWA = "SysListView32"
-WC_LISTVIEWW = "SysListView32"
-WC_LISTVIEW = WC_LISTVIEWA
+WC_LISTVIEWA = type_str('SysListView32')
+WC_LISTVIEWW = type_unicode('SysListView32')
+WC_LISTVIEW = WC_LISTVIEWW
+if not UNICODE:
+	WC_LISTVIEW = WC_LISTVIEWA
 
-TOOLBARCLASSNAMEW = "ToolbarWindow32"
-TOOLBARCLASSNAMEA = "ToolbarWindow32"
-TOOLBARCLASSNAME = TOOLBARCLASSNAMEA
+TOOLBARCLASSNAMEA = type_str('ToolbarWindow32')
+TOOLBARCLASSNAMEW = type_unicode('ToolbarWindow32')
+TOOLBARCLASSNAME = TOOLBARCLASSNAMEW
+if not UNICODE:
+	TOOLBARCLASSNAME = TOOLBARCLASSNAMEA
 
-WC_TABCONTROLA =    "SysTabControl32"
-WC_TABCONTROLW =      "SysTabControl32"
-WC_TABCONTROL = WC_TABCONTROLA
+WC_TABCONTROLA = type_str('SysTabControl32')
+WC_TABCONTROLW = type_unicode('SysTabControl32')
+WC_TABCONTROL = WC_TABCONTROLW
+if not UNICODE:
+	WC_TABCONTROL = WC_TABCONTROLA
 
 LVS_ICON    = 0
 LVS_REPORT   = 1
@@ -589,37 +676,153 @@ LVIS_ACTIVATING      = 0x0020
 LVIS_OVERLAYMASK     = 0x0F00
 LVIS_STATEIMAGEMASK  = 0xF000
 
+if _WIN32_IE >= 0x0400:
+	LV_MAX_WORKAREAS = 16
+
 LVM_FIRST = 0x1000
-LVM_INSERTCOLUMNA = (LVM_FIRST+27)
-LVM_INSERTCOLUMN = LVM_INSERTCOLUMNA
-LVM_INSERTITEMA = (LVM_FIRST+7)
-LVM_SETITEMA = (LVM_FIRST+6)
-LVM_INSERTITEM = LVM_INSERTITEMA
-LVM_SETITEM = LVM_SETITEMA
-LVM_DELETEALLITEMS =  (LVM_FIRST + 9)
-LVM_SETITEMSTATE  =  (LVM_FIRST + 43)
-LVM_GETITEMCOUNT  =  (LVM_FIRST + 4)
-LVM_GETITEMSTATE   =  (LVM_FIRST + 44)
-if UNICODE:
-	LVM_GETITEMTEXT = (LVM_FIRST + 115)
-else:
-	LVM_GETITEMTEXT = (LVM_FIRST + 45)
-if UNICODE:
-	LVM_SETITEMTEXT = (LVM_FIRST + 116)
-else:
-	LVM_SETITEMTEXT = (LVM_FIRST + 46)
-LVM_SETITEMCOUNT = (LVM_FIRST + 47)
-LVM_SORTITEMS = (LVM_FIRST + 48)
-LVM_SETITEMPOSITION32 = (LVM_FIRST + 49)
-LVM_GETSELECTEDCOUNT =   (LVM_FIRST + 50)
-LVM_SETCOLUMNA  =        (LVM_FIRST + 26)
-LVM_SETCOLUMNW  =        (LVM_FIRST + 96)
-LVM_SETCOLUMN = LVM_SETCOLUMNA
-LVM_SETCOLUMNWIDTH =  (LVM_FIRST + 30)
-LVM_GETITEMA   =         (LVM_FIRST + 5)
-LVM_GETITEMW   =         (LVM_FIRST + 75)
-LVM_GETITEM = LVM_GETITEMA
-LVM_SETEXTENDEDLISTVIEWSTYLE = (LVM_FIRST + 54)
+LVM_GETBKCOLOR = LVM_FIRST
+LVM_SETBKCOLOR = LVM_FIRST + 1
+LVM_GETIMAGELIST = LVM_FIRST + 2
+LVM_SETIMAGELIST = LVM_FIRST + 3
+LVM_GETITEMCOUNT = LVM_FIRST + 4
+LVM_DELETEITEM = LVM_FIRST + 8
+LVM_DELETEALLITEMS = LVM_FIRST + 9
+LVM_GETCALLBACKMASK = LVM_FIRST + 10
+LVM_SETCALLBACKMASK = LVM_FIRST + 11
+LVM_GETNEXTITEM = LVM_FIRST + 12
+LVM_GETITEMRECT = LVM_FIRST + 14
+LVM_SETITEMPOSITION = LVM_FIRST + 15
+LVM_GETITEMPOSITION = LVM_FIRST + 16
+LVM_HITTEST = LVM_FIRST + 18
+LVM_ENSUREVISIBLE = LVM_FIRST + 19
+LVM_SCROLL = LVM_FIRST + 20
+LVM_REDRAWITEMS = LVM_FIRST + 21
+LVM_ARRANGE = LVM_FIRST + 22
+LVM_GETEDITCONTROL = LVM_FIRST + 24
+LVM_DELETECOLUMN = LVM_FIRST + 28
+LVM_GETCOLUMNWIDTH = LVM_FIRST + 29
+LVM_SETCOLUMNWIDTH = LVM_FIRST + 30
+LVM_GETHEADER = LVM_FIRST + 31
+LVM_CREATEDRAGIMAGE = LVM_FIRST + 33
+LVM_GETVIEWRECT = LVM_FIRST + 34
+LVM_GETTEXTCOLOR = LVM_FIRST + 35
+LVM_SETTEXTCOLOR = LVM_FIRST + 36
+LVM_GETTEXTBKCOLOR = LVM_FIRST + 37
+LVM_SETTEXTBKCOLOR = LVM_FIRST + 38
+LVM_GETTOPINDEX = LVM_FIRST + 39
+LVM_GETCOUNTPERPAGE = LVM_FIRST + 40
+LVM_GETORIGIN = LVM_FIRST + 41
+LVM_UPDATE = LVM_FIRST + 42
+LVM_SETITEMSTATE = LVM_FIRST + 43
+LVM_GETITEMSTATE = LVM_FIRST + 44
+LVM_SETITEMCOUNT = LVM_FIRST + 47
+LVM_SORTITEMS = LVM_FIRST + 48
+LVM_SETITEMPOSITION32 = LVM_FIRST + 49
+LVM_GETSELECTEDCOUNT = LVM_FIRST + 50
+LVM_GETITEMSPACING = LVM_FIRST + 51
+LVM_SETICONSPACING = LVM_FIRST + 53
+LVM_SETEXTENDEDLISTVIEWSTYLE = LVM_FIRST + 54
+LVM_GETEXTENDEDLISTVIEWSTYLE = LVM_FIRST + 55
+LVM_GETSUBITEMRECT = LVM_FIRST + 56
+LVM_SUBITEMHITTEST = LVM_FIRST + 57
+LVM_SETCOLUMNORDERARRAY = LVM_FIRST + 58
+LVM_GETCOLUMNORDERARRAY = LVM_FIRST + 59
+LVM_SETHOTITEM = LVM_FIRST + 60
+LVM_GETHOTITEM = LVM_FIRST + 61
+LVM_SETHOTCURSOR = LVM_FIRST + 62
+LVM_GETHOTCURSOR = LVM_FIRST + 63
+LVM_APPROXIMATEVIEWRECT = LVM_FIRST + 64
+LVM_SETWORKAREAS = LVM_FIRST + 65
+LVM_GETSELECTIONMARK = LVM_FIRST + 66
+LVM_SETSELECTIONMARK = LVM_FIRST + 67
+LVM_GETWORKAREAS = LVM_FIRST + 70
+LVM_SETHOVERTIME = LVM_FIRST + 71
+LVM_GETHOVERTIME = LVM_FIRST + 72
+LVM_GETNUMBEROFWORKAREAS = LVM_FIRST + 73
+LVM_SETTOOLTIPS = LVM_FIRST + 74
+LVM_GETITEM = LVM_FIRST + 75
+LVM_SETITEM = LVM_FIRST + 76
+LVM_INSERTITEM = LVM_FIRST + 77
+LVM_GETTOOLTIPS = LVM_FIRST + 78
+LVM_SORTITEMSEX = LVM_FIRST + 81
+LVM_FINDITEM = LVM_FIRST + 83
+LVM_GETSTRINGWIDTH = LVM_FIRST + 87
+LVM_GETCOLUMN = LVM_FIRST + 95
+LVM_SETCOLUMN = LVM_FIRST + 96
+LVM_INSERTCOLUMN = LVM_FIRST + 97
+LVM_GETITEMTEXT = LVM_FIRST + 115
+LVM_SETITEMTEXT = LVM_FIRST + 116
+LVM_GETISEARCHSTRING = LVM_FIRST + 117
+LVM_EDITLABEL = LVM_FIRST + 118
+LVM_SETBKIMAGE = LVM_FIRST + 138
+LVM_GETBKIMAGE = LVM_FIRST + 139
+
+if not UNICODE:
+	LVM_GETITEM = LVM_FIRST + 5
+	LVM_SETITEM = LVM_FIRST + 6
+	LVM_INSERTITEM = LVM_FIRST + 7
+	LVM_FINDITEM = LVM_FIRST + 13
+	LVM_GETSTRINGWIDTH = LVM_FIRST + 17
+	LVM_EDITLABEL = LVM_FIRST + 23
+	LVM_GETCOLUMN = LVM_FIRST + 25
+	LVM_SETCOLUMN = LVM_FIRST + 26
+	LVM_INSERTCOLUMN = LVM_FIRST + 27
+	LVM_GETITEMTEXT = LVM_FIRST + 45
+	LVM_SETITEMTEXT = LVM_FIRST + 46
+	LVM_GETISEARCHSTRING = LVM_FIRST + 52
+	LVM_SETBKIMAGE = LVM_FIRST + 68
+	LVM_GETBKIMAGE = LVM_FIRST + 69
+
+if _WIN32_WINNT >= 0x0501:
+	LVM_GETGROUPSTATE = LVM_FIRST + 92
+	LVM_GETFOCUSEDGROUP = LVM_FIRST + 93
+	LVM_GETGROUPRECT = LVM_FIRST + 98
+	LVM_SETSELECTEDCOLUMN = LVM_FIRST + 140
+	LVM_SETVIEW = LVM_FIRST + 142
+	LVM_GETVIEW = LVM_FIRST + 143
+	LVM_INSERTGROUP = LVM_FIRST + 145
+	LVM_SETGROUPINFO = LVM_FIRST + 147
+	LVM_GETGROUPINFO = LVM_FIRST + 149
+	LVM_REMOVEGROUP = LVM_FIRST + 150
+	LVM_MOVEGROUP = LVM_FIRST + 151
+	LVM_GETGROUPCOUNT = LVM_FIRST + 152
+	LVM_GETGROUPINFOBYINDEX = LVM_FIRST + 153
+	LVM_MOVEITEMTOGROUP = LVM_FIRST + 154
+	LVM_SETGROUPMETRICS = LVM_FIRST + 155
+	LVM_GETGROUPMETRICS = LVM_FIRST + 156
+	LVM_ENABLEGROUPVIEW = LVM_FIRST + 157
+	LVM_SORTGROUPS = LVM_FIRST + 158
+	LVM_INSERTGROUPSORTED = LVM_FIRST + 159
+	LVM_REMOVEALLGROUPS = LVM_FIRST + 160
+	LVM_HASGROUP = LVM_FIRST + 161
+	LVM_SETTILEVIEWINFO = LVM_FIRST + 162
+	LVM_GETTILEVIEWINFO = LVM_FIRST + 163
+	LVM_SETTILEINFO = LVM_FIRST + 164
+	LVM_GETTILEINFO = LVM_FIRST + 165
+	LVM_SETINSERTMARK = LVM_FIRST + 166
+	LVM_GETINSERTMARK = LVM_FIRST + 167
+	LVM_INSERTMARKHITTEST = LVM_FIRST + 168
+	LVM_GETINSERTMARKRECT = LVM_FIRST + 169
+	LVM_SETINSERTMARKCOLOR = LVM_FIRST + 170
+	LVM_GETINSERTMARKCOLOR = LVM_FIRST + 171
+	LVM_SETINFOTIP = LVM_FIRST + 173
+	LVM_GETSELECTEDCOLUMN = LVM_FIRST + 174
+	LVM_ISGROUPVIEWENABLED = LVM_FIRST + 175
+	LVM_GETOUTLINECOLOR = LVM_FIRST + 176
+	LVM_SETOUTLINECOLOR = LVM_FIRST + 177
+	LVM_CANCELEDITLABEL = LVM_FIRST + 179
+	LVM_MAPINDEXTOID = LVM_FIRST + 180
+	LVM_MAPIDTOINDEX = LVM_FIRST + 181
+	LVM_ISITEMVISIBLE = LVM_FIRST + 182
+	if _WIN32_WINNT >= 0x0600:
+		LVM_GETEMPTYTEXT = LVM_FIRST + 204
+		LVM_GETFOOTERRECT = LVM_FIRST + 205
+		LVM_GETFOOTERINFO = LVM_FIRST + 206
+		LVM_GETFOOTERITEMRECT = LVM_FIRST + 207
+		LVM_GETFOOTERITEM = LVM_FIRST + 208
+		LVM_GETITEMINDEXRECT = LVM_FIRST + 209
+		LVM_SETITEMINDEXSTATE = LVM_FIRST + 210
+		LVM_GETNEXTITEMINDEX = LVM_FIRST + 211
 
 LVN_FIRST = (UINT_MAX) - 100
 LVN_ITEMCHANGING    =    (LVN_FIRST-0)
@@ -627,37 +830,38 @@ LVN_ITEMCHANGED     =    (LVN_FIRST-1)
 LVN_INSERTITEM      =    (LVN_FIRST-2)
 LVN_DELETEITEM       =   (LVN_FIRST-3)
 LVN_DELETEALLITEMS    =  (LVN_FIRST-4)
-LVN_BEGINLABELEDITA   =  (LVN_FIRST-5)
-LVN_BEGINLABELEDITW   =  (LVN_FIRST-75)
-LVN_ENDLABELEDITA     =  (LVN_FIRST-6)
-LVN_ENDLABELEDITW     =  (LVN_FIRST-76)
+LVN_BEGINLABELEDIT = LVN_FIRST-75
+LVN_ENDLABELEDIT = LVN_FIRST-76
+if not UNICODE:
+	LVN_BEGINLABELEDIT = LVN_FIRST-5
+	LVN_ENDLABELEDIT = LVN_FIRST-6
 LVN_COLUMNCLICK       =  (LVN_FIRST-8)
 LVN_BEGINDRAG         =  (LVN_FIRST-9)
 LVN_BEGINRDRAG        =  (LVN_FIRST-11)
 
-NM_OUTOFMEMORY    =      (NM_FIRST-1)
-NM_CLICK          =      (NM_FIRST-2)   
-NM_DBLCLK         =      (NM_FIRST-3)
-NM_RETURN         =      (NM_FIRST-4)
-NM_RCLICK         =      (NM_FIRST-5)   
-NM_RDBLCLK        =      (NM_FIRST-6)
-NM_SETFOCUS       =      (NM_FIRST-7)
-NM_KILLFOCUS      =      (NM_FIRST-8)
-NM_CUSTOMDRAW     =      (NM_FIRST-12)
-NM_HOVER          =      (NM_FIRST-13)
-NM_NCHITTEST      =      (NM_FIRST-14)  
-NM_KEYDOWN        =      (NM_FIRST-15)  
-NM_RELEASEDCAPTURE=      (NM_FIRST-16)
-NM_SETCURSOR      =      (NM_FIRST-17)  
-NM_CHAR           =      (NM_FIRST-18)  
+NM_OUTOFMEMORY    = NM_FIRST-1
+NM_CLICK          = NM_FIRST-2
+NM_DBLCLK         = NM_FIRST-3
+NM_RETURN         = NM_FIRST-4
+NM_RCLICK         = NM_FIRST-5
+NM_RDBLCLK        = NM_FIRST-6
+NM_SETFOCUS       = NM_FIRST-7
+NM_KILLFOCUS      = NM_FIRST-8
+NM_CUSTOMDRAW     = NM_FIRST-12
+NM_HOVER          = NM_FIRST-13
+NM_NCHITTEST      = NM_FIRST-14
+NM_KEYDOWN        = NM_FIRST-15
+NM_RELEASEDCAPTURE= NM_FIRST-16
+NM_SETCURSOR      = NM_FIRST-17
+NM_CHAR           = NM_FIRST-18
 
 LVCFMT_LEFT = 0
-LVCFMT_RIGHT= 1
-LVCFMT_CENTER   =     2
-LVCFMT_JUSTIFYMASK =  3
-LVCFMT_BITMAP_ON_RIGHT =4096
+LVCFMT_RIGHT = 1
+LVCFMT_CENTER = 2
+LVCFMT_JUSTIFYMASK = 3
+LVCFMT_IMAGE = 2048
+LVCFMT_BITMAP_ON_RIGHT = 4096
 LVCFMT_COL_HAS_IMAGES = 32768
-LVCFMT_IMAGE =2048
 
 #~ ICC_LISTVIEW_CLASSES =1
 #~ ICC_TREEVIEW_CLASSES =2
@@ -676,85 +880,136 @@ LVCFMT_IMAGE =2048
 #~ ICC_NATIVEFNTCTL_CLASS= 8192
 ICC_LISTVIEW_CLASSES = 0x00000001# listview, header
 ICC_TREEVIEW_CLASSES = 0x00000002# treeview, tooltips
-ICC_BAR_CLASSES      = 0x00000004# toolbar, statusbar, trackbar, tooltips
-ICC_TAB_CLASSES      = 0x00000008# tab, tooltips
-ICC_UPDOWN_CLASS     = 0x00000010# updown
-ICC_PROGRESS_CLASS   = 0x00000020# progress
-ICC_HOTKEY_CLASS     = 0x00000040# hotkey
-ICC_ANIMATE_CLASS    = 0x00000080# animate
-ICC_WIN95_CLASSES    = 0x000000FF
-ICC_DATE_CLASSES     = 0x00000100# month picker, date picker, time picker, updown
-ICC_USEREX_CLASSES   = 0x00000200# comboex
-ICC_COOL_CLASSES     = 0x00000400# rebar (coolbar) control
+ICC_BAR_CLASSES = 0x00000004# toolbar, statusbar, trackbar, tooltips
+ICC_TAB_CLASSES = 0x00000008# tab, tooltips
+ICC_UPDOWN_CLASS = 0x00000010# updown
+ICC_PROGRESS_CLASS = 0x00000020# progress
+ICC_HOTKEY_CLASS = 0x00000040# hotkey
+ICC_ANIMATE_CLASS = 0x00000080# animate
+ICC_WIN95_CLASSES = 0x000000FF
+ICC_DATE_CLASSES = 0x00000100# month picker, date picker, time picker, updown
+ICC_USEREX_CLASSES = 0x00000200# comboex
+ICC_COOL_CLASSES = 0x00000400# rebar (coolbar) control
 if WINVER >= 0x0400:
 	ICC_INTERNET_CLASSES = 0x00000800
 	ICC_PAGESCROLLER_CLASS = 0x00001000# page scroller
 	ICC_NATIVEFNTCTL_CLASS = 0x00002000# native font control
 if WINVER >= 0x0501:
 	ICC_STANDARD_CLASSES = 0x00004000
-	ICC_LINK_CLASS       = 0x00008000
+	ICC_LINK_CLASS = 0x00008000
 
-TCN_FIRST  =  (UINT_MAX) -550
-TCN_LAST   =  (UINT_MAX) -580
-TCN_KEYDOWN   =  TCN_FIRST
-TCN_SELCHANGE =        (TCN_FIRST-1)
-TCN_SELCHANGING  =     (TCN_FIRST-2)
+TCN_FIRST = UINT_MAX -550
+TCN_LAST = UINT_MAX -580
+TCN_KEYDOWN = TCN_FIRST
+TCN_SELCHANGE = TCN_FIRST-1
+TCN_SELCHANGING = TCN_FIRST-2
 
-TVE_COLLAPSE =1
-TVE_EXPAND   =2
-TVE_TOGGLE   =3
-TVE_COLLAPSERESET   = 0x8000
+TVE_COLLAPSE = 1
+TVE_EXPAND = 2
+TVE_TOGGLE = 3
+TVE_COLLAPSERESET = 0x8000
 
-TCM_FIRST   = 0x1300
-TCM_INSERTITEMA  =    (TCM_FIRST+7)
-TCM_INSERTITEMW  =   (TCM_FIRST+62)
-TCM_INSERTITEM = TCM_INSERTITEMA
-TCM_ADJUSTRECT = (TCM_FIRST+40)
-TCM_GETCURSEL   =     (TCM_FIRST+11)
-TCM_SETCURSEL   =     (TCM_FIRST+12)
-TCM_GETITEMA = (TCM_FIRST+5)
-TCM_GETITEMW = (TCM_FIRST+60)
-TCM_GETITEM = TCM_GETITEMA
+TCM_FIRST = 0x1300
 
-TVN_FIRST  =  ((UINT_MAX)-400)
-TVN_LAST   =  ((UINT_MAX)-499)
-TVN_ITEMEXPANDINGA =  (TVN_FIRST-5)
-TVN_ITEMEXPANDINGW =  (TVN_FIRST-54)
-TVN_ITEMEXPANDING = TVN_ITEMEXPANDINGA
-TVN_SELCHANGEDA  =    (TVN_FIRST-2)
-TVN_SELCHANGEDW  =    (TVN_FIRST-51)
-TVN_SELCHANGED  =  TVN_SELCHANGEDA
-TVN_DELETEITEMA  =     (TVN_FIRST-9)
-TVN_DELETEITEMW  =    (TVN_FIRST-58)
-TVN_DELETEITEM = TVN_DELETEITEMA
+TCM_GETITEM = TCM_FIRST+60
+TCM_INSERTITEM = TCM_FIRST+62
+if not UNICODE:
+	TCM_GETITEM = TCM_FIRST+5
+	TCM_INSERTITEM = TCM_FIRST+7
 
-SB_SIMPLE =   (WM_USER+9)
-SB_SETTEXTA = (WM_USER+1)
-SB_SETTEXTW = (WM_USER+11)
-SB_SETTEXT = SB_SETTEXTA
+TCM_ADJUSTRECT = TCM_FIRST+40
+TCM_GETCURSEL = TCM_FIRST+11
+TCM_SETCURSEL = TCM_FIRST+12
 
-SBT_OWNERDRAW   =     0x1000
-SBT_NOBORDERS   =     256
-SBT_POPOUT   = 512
-SBT_RTLREADING =      1024
-SBT_OWNERDRAW  =      0x1000
-SBT_NOBORDERS  =      256
-SBT_POPOUT   = 512
+TVN_FIRST = UINT_MAX-400
+TVN_LAST = UINT_MAX-499
+
+TVN_ITEMEXPANDING = TVN_FIRST-54
+TVN_SELCHANGED = TVN_FIRST-51
+TVN_DELETEITEM = TVN_FIRST-58
+if not UNICODE:
+	TVN_ITEMEXPANDING = TVN_FIRST-5
+	TVN_SELCHANGED = TVN_FIRST-2
+	TVN_DELETEITEM = TVN_FIRST-9
+
+SB_SIMPLE = WM_USER+9
+SB_SETTEXT = WM_USER+11
+if not UNICODE:
+	SB_SETTEXT = WM_USER+1
+
+SBT_OWNERDRAW = 0x1000
+SBT_NOBORDERS = 256
+SBT_POPOUT = 512
 SBT_RTLREADING = 1024
 SBT_TOOLTIPS = 0x0800
 
-TBN_FIRST          =  ((UINT_MAX)-700)
-TBN_DROPDOWN       =     (TBN_FIRST - 10)
-TBN_HOTITEMCHANGE  =  (TBN_FIRST - 13)
-TBDDRET_DEFAULT       =  0
-TBDDRET_NODEFAULT     =  1
-TBDDRET_TREATPRESSED  =  2
+TBN_FIRST = UINT_MAX-700
+TBN_DROPDOWN = TBN_FIRST - 10
+TBN_HOTITEMCHANGE = TBN_FIRST - 13
+TBDDRET_DEFAULT = 0
+TBDDRET_NODEFAULT = 1
+TBDDRET_TREATPRESSED = 2
 
-PBS_SMOOTH   = 0x01
+HINST_COMMCTRL = -1#HINSTANCE - 1
+
+IDB_STD_SMALL_COLOR = 0
+IDB_STD_LARGE_COLOR = 1
+IDB_VIEW_SMALL_COLOR = 4
+IDB_VIEW_LARGE_COLOR = 5
+if _WIN32_IE >= 0x0300:
+	IDB_HIST_SMALL_COLOR = 8
+	IDB_HIST_LARGE_COLOR = 9
+if _WIN32_WINNT >= 0x600:
+	IDB_HIST_NORMAL = 12
+	IDB_HIST_HOT = 13
+	IDB_HIST_DISABLED = 14
+	IDB_HIST_PRESSED = 15
+
+# icon indexes for standard bitmap
+STD_CUT = 0
+STD_COPY = 1
+STD_PASTE = 2
+STD_UNDO = 3
+STD_REDOW = 4
+STD_DELETE = 5
+STD_FILENEW = 6
+STD_FILEOPEN = 7
+STD_FILESAVE = 8
+STD_PRINTPRE = 9
+STD_PROPERTIES = 10
+STD_HELP = 11
+STD_FIND = 12
+STD_REPLACE = 13
+STD_PRINT = 14
+
+# icon indexes for standard view bitmap
+VIEW_LARGEICONS = 0
+VIEW_SMALLICONS = 1
+VIEW_LIST = 2
+VIEW_DETAILS = 3
+VIEW_SORTNAME = 4
+VIEW_SORTSIZE = 5
+VIEW_SORTDATE = 6
+VIEW_SORTTYPE = 7
+VIEW_PARENTFOLDER = 8
+VIEW_NETCONNECT = 9
+VIEW_NETDISCONNECT = 10
+VIEW_NEWFOLDER = 11
+if _WIN32_IE >= 0x0400:
+	VIEW_VIEWMENU = 12
+
+if _WIN32_IE >= 0x0300:
+	HIST_BACK = 0
+	HIST_FORWARD = 1
+	HIST_FAVORITES = 2
+	HIST_ADDTOFAVORITES = 3
+	HIST_VIEWTREE = 4
+
+PBS_SMOOTH = 0x01
 PBS_VERTICAL = 0x04
 
-CCM_FIRST      = 0x2000 # Common control shared messages
-CCM_SETBKCOLOR = (CCM_FIRST + 1)
+CCM_FIRST = 0x2000 # Common control shared messages
+CCM_SETBKCOLOR = CCM_FIRST + 1
 
 PBM_SETRANGE    = (WM_USER+1)
 PBM_SETPOS      = (WM_USER+2)
@@ -774,6 +1029,24 @@ LB_RESETCONTENT = 388
 LB_GETCOUNT = 395
 LB_SETTOPINDEX = 407
 
+RBBIM_STYLE = 0x00000001
+RBBIM_COLORS = 0x00000002
+RBBIM_TEXT = 0x00000004
+RBBIM_IMAGE = 0x00000008
+RBBIM_CHILD = 0x00000010
+RBBIM_CHILDSIZE = 0x00000020
+RBBIM_SIZE = 0x00000040
+RBBIM_BACKGROUND = 0x00000080
+RBBIM_ID = 0x00000100
+if _WIN32_IE >= 0x0400:
+	RBBIM_IDEALSIZE = 0x00000200
+	RBBIM_LPARAM = 0x00000400
+	RBBIM_HEADERSIZE = 0x00000800 # control the size of the header
+if _WIN32_WINNT >= 0x0600:
+	RBBIM_CHEVRONLOCATION = 0x00001000
+	RBBIM_CHEVRONSTATE = 0x00002000
+
+
 ImageList_Create = windll.comctl32.ImageList_Create
 ImageList_Destroy = windll.comctl32.ImageList_Destroy
 ImageList_AddMasked = windll.comctl32.ImageList_AddMasked
@@ -782,15 +1055,179 @@ ImageList_SetBkColor = windll.comctl32.ImageList_SetBkColor
 
 InitCommonControlsEx = WINFUNCTYPE(c_bool, POINTER(INITCOMMONCONTROLSEX))(('InitCommonControlsEx', windll.comctl32))
 
+def InitCommonControls(dwICC):
+	iccex = INITCOMMONCONTROLSEX()
+	iccex.dwSize = sizeof(INITCOMMONCONTROLSEX)
+	iccex.dwICC = dwICC
+	InitCommonControlsEx(iccex)
+
+MAXPROPPAGES = 100
+
+PSP_DEFAULT = 0x00000000
+PSP_DLGINDIRECT = 0x00000001
+PSP_USEHICON = 0x00000002
+PSP_USEICONID = 0x00000004
+PSP_USETITLE = 0x00000008
+PSP_RTLREADING = 0x00000010
+
+PSP_HASHELP = 0x00000020
+PSP_USEREFPARENT = 0x00000040
+PSP_USECALLBACK = 0x00000080
+PSP_PREMATURE = 0x00000400
+
+#----- New flags for wizard97 --------------
+if _WIN32_IE >= 0x0400:
+	PSP_HIDEHEADER = 0x00000800
+	PSP_USEHEADERTITLE = 0x00001000
+	PSP_USEHEADERSUBTITLE = 0x00002000
+
+if _WIN32_WINNT >= 0x0501:
+	PSP_USEFUSIONCONTEXT = 0x00004000
+
+if _WIN32_IE >= 0x0500:
+	PSPCB_ADDREF = 0
+PSPCB_RELEASE = 1
+PSPCB_CREATE = 2
+
+#----- PropSheet Header related ---------
+PSH_DEFAULT = 0x00000000
+PSH_PROPTITLE = 0x00000001
+PSH_USEHICON = 0x00000002
+PSH_USEICONID = 0x00000004
+PSH_PROPSHEETPAGE = 0x00000008
+
+PSH_WIZARDHASFINISH = 0x00000010
+PSH_WIZARD = 0x00000020
+PSH_USEPSTARTPAGE = 0x00000040
+PSH_NOAPPLYNOW = 0x00000080
+
+PSH_USECALLBACK = 0x00000100
+PSH_HASHELP = 0x00000200
+PSH_MODELESS = 0x00000400
+PSH_RTLREADING = 0x00000800
+
+PSH_WIZARDCONTEXTHELP = 0x00001000
+
+#----- New flags for wizard97 -----------
+if _WIN32_IE >= 0x0400:
+	if _WIN32_IE < 0x0500:
+		PSH_WIZARD97 = 0x00002000
+	else:
+		PSH_WIZARD97 = 0x01000000
+
+	PSH_WATERMARK = 0x00008000
+
+	PSH_USEHBMWATERMARK = 0x00010000 # user pass in a hbmWatermark instead of pszbmWatermark
+	PSH_USEHPLWATERMARK = 0x00020000
+	PSH_STRETCHWATERMARK = 0x00040000 # stretchwatermark also applies for the header
+	PSH_HEADER = 0x00080000
+
+	PSH_USEHBMHEADER = 0x00100000
+	PSH_USEPAGELANG = 0x00200000 # use frame dialog template matched to page
+
+#----- New flags for wizard-lite --------
+if _WIN32_IE >= 0x0500:
+	PSH_WIZARD_LITE = 0x00400000
+	PSH_NOCONTEXTHELP = 0x02000000
+
+if _WIN32_WINNT >= 0x0600:
+	PSH_AEROWIZARD = 0x00004000
+	PSH_RESIZABLE = 0x04000000
+	PSH_HEADERBITMAP = 0x08000000
+	PSH_NOMARGIN = 0x10000000
+
+HPROPSHEETPAGE = c_void_p
+_PROPSHEETPAGE = c_void_p#later initialized as PROPSHEETPAGE
+
+LPFNPSPCALLBACK = WINFUNCTYPE(UINT, HWND, UINT, _PROPSHEETPAGE)
+
+class DUMMYUNIONNAME(Union):
+	if UNICODE:
+		_fields_ = [('pszTemplate', c_wchar_p), ('pResource', LPDLGTEMPLATE)]
+	else:
+		_fields_ = [('pszTemplate', c_char_p), ('pResource', LPDLGTEMPLATE)]
+
+class _DUMMYUNIONNAME(Union):
+	if UNICODE:
+		_fields_ = [('hIcon', HICON), ('pszIcon', c_wchar_p)]
+	else:
+		_fields_ = [('hIcon', HICON), ('pszIcon', c_char_p)]
+DUMMYUNIONNAME2 = _DUMMYUNIONNAME
+
+class PROPSHEETPAGE(Structure):
+	_fields_ = [('dwSize', DWORD),
+	('dwFlags', DWORD),
+	('hInstance', c_void_p),
+	('u1', DUMMYUNIONNAME),
+	('u2', DUMMYUNIONNAME2)]
+	if UNICODE:
+		_fields_.append(('pszTitle', c_wchar_p))
+	else:
+		_fields_.append(('pszTitle', c_char_p))
+	_fields_ + [('pfnDlgProc', DLGPROC),
+	('lParam', LPARAM),
+	('pfnCallback', LPFNPSPCALLBACK),
+	('pcRefParent', c_void_p)]
+	_anonymous_ = ('u1', 'u2')
+_PROPSHEETPAGE = PROPSHEETPAGE
+LPCPROPSHEETPAGE = POINTER(PROPSHEETPAGE)
+
+PFNPROPSHEETCALLBACK = WINFUNCTYPE(c_int, HWND, UINT, LPARAM)
+
+class _DUMMYUNIONNAME2(Union):
+	if UNICODE:
+		_fields_ = [('nStartPage', UINT), ('pStartPage', c_wchar_p)]
+	else:
+		_fields_ = [('nStartPage', UINT), ('pStartPage', c_char_p)]
+
+class _DUMMYUNIONNAME3(Union):
+	_fields_ = [('ppsp', LPCPROPSHEETPAGE), ('phpage', HPROPSHEETPAGE)]
+
+class PROPSHEETHEADER(Structure):
+	_fields_ = [('dwSize', DWORD),
+	('dwFlags', DWORD),
+	('hwndParent', c_void_p),
+	('hInstance', c_void_p),
+	('u1', _DUMMYUNIONNAME)]
+	if UNICODE:
+		_fields_.append(('pszCaption', c_wchar_p))
+	else:
+		_fields_.append(('pszCaption', c_char_p))
+	_fields_ += [('nPages', UINT),
+	('u2', _DUMMYUNIONNAME2),
+	('u3', _DUMMYUNIONNAME3),
+	('pfnCallback', PFNPROPSHEETCALLBACK)]
+	_anonymous_ = ('u1', 'u2', 'u3')
+LPCPROPSHEETHEADER = POINTER(PROPSHEETHEADER)
+
+CreatePropertySheetPage = WINFUNCTYPE(c_void_p, LPCPROPSHEETPAGE)(('CreatePropertySheetPageW', windll.comctl32))
+PropertySheet = WINFUNCTYPE(HPROPSHEETPAGE, LPCPROPSHEETHEADER)(('PropertySheetW', windll.comctl32))
+if not UNICODE:
+	CreatePropertySheetPage = WINFUNCTYPE(c_void_p, LPCPROPSHEETPAGE)(('CreatePropertySheetPageA', windll.comctl32))
+	PropertySheet = WINFUNCTYPE(HPROPSHEETPAGE, LPCPROPSHEETHEADER)(('PropertySheetA', windll.comctl32))
+DestroyPropertySheetPage = WINFUNCTYPE(c_bool, HPROPSHEETPAGE)(('DestroyPropertySheetPage', windll.comctl32))
+
 class Button(Window):
 	_window_class_ = BUTTON
 	_window_style_ = WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON
 
+	def Click(self):
+		return self.SendMessage(BM_CLICK)
+
 	def GetState(self):
 		return self.SendMessage(BM_GETSTATE)
 
+	def GetImage(self, image_type = IMAGE_BITMAP):
+		return self.SendMessage(BM_GETIMAGE, image_type)
+
 	def SetState(self, state = BST_FOCUS):
 		self.SendMessage(BM_SETSTATE, state)
+
+	def SetImage(self, image, image_type = IMAGE_BITMAP):
+		return self.SetImageDirect(image_type, image.handle)
+
+	def SetImageDirect(self, image_type = IMAGE_BITMAP, image_handle = 0):
+		return self.SendMessage(BM_SETIMAGE, image_type, image_handle)
 
 class RadioButton(Button):
 	_window_class_ = BUTTON
@@ -825,7 +1262,8 @@ class StatusBar(Window):
 		txt = create_unicode_buffer(text)
 		if not UNICODE:
 			txt = create_string_buffer(text)
-		self.SendMessage(SB_SETTEXT, (255 | SBT_NOBORDERS), addressof(txt))
+		#~ self.SendMessage(SB_SETTEXT, 255 | SBT_NOBORDERS, addressof(txt))
+		self.SendMessage(SB_SETTEXT, 255 | SBT_NOBORDERS, txt)
 
 class StaticText(Window):
 	_window_class_ = WC_STATIC
@@ -946,9 +1384,73 @@ class ComboBoxEx(ComboBox):
 	_window_class_ = WC_COMBOBOXEX
 	_window_style_ = WS_VISIBLE | WS_CHILD | CBS_DROPDOWN
 
+# Edit Control Messages
+EM_GETSEL = 0x00B0
+EM_SETSEL = 0x00B1
+EM_GETRECT = 0x00B2
+EM_SETRECT = 0x00B3
+EM_SETRECTNP = 0x00B4
+EM_SCROLL = 0x00B5
+EM_LINESCROLL = 0x00B6
+EM_SCROLLCARET = 0x00B7
+EM_GETMODIFY = 0x00B8
+EM_SETMODIFY = 0x00B9
+EM_GETLINECOUNT = 0x00BA
+EM_LINEINDEX = 0x00BB
+EM_SETHANDLE = 0x00BC
+EM_GETHANDLE = 0x00BD
+EM_GETTHUMB = 0x00BE
+EM_LINELENGTH = 0x00C1
+EM_REPLACESEL = 0x00C2
+EM_GETLINE = 0x00C4
+EM_LIMITTEXT = 0x00C5
+EM_CANUNDO = 0x00C6
+EM_UNDO = 0x00C7
+EM_FMTLINES = 0x00C8
+EM_LINEFROMCHAR = 0x00C9
+EM_SETTABSTOPS = 0x00CB
+EM_SETPASSWORDCHAR = 0x00CC
+EM_EMPTYUNDOBUFFER = 0x00CD
+EM_GETFIRSTVISIBLELINE = 0x00CE
+EM_SETREADONLY = 0x00CF
+EM_SETWORDBREAKPROC = 0x00D0
+EM_GETWORDBREAKPROC = 0x00D1
+EM_GETPASSWORDCHAR = 0x00D2
+if WINVER >= 0x0400:
+	EM_SETMARGINS = 0x00D3
+	EM_GETMARGINS = 0x00D4
+	EM_SETLIMITTEXT = EM_LIMITTEXT # ;win40 Name change
+	EM_GETLIMITTEXT = 0x00D5
+	EM_POSFROMCHAR = 0x00D6
+	EM_CHARFROMPOS = 0x00D7
+	if WINVER >= 0x0500:
+		EM_SETIMESTATUS = 0x00D8
+		EM_GETIMESTATUS = 0x00D9
+
 class Edit(Window):
-	_window_class__ = WC_EDIT
+	_window_class_ = WC_EDIT
 	_window_style_ = WS_VISIBLE | WS_CHILD
+
+	def GetSel(self):
+		pos_start = c_ulong()
+		pos_end = c_ulong()
+		self.SendMessage(EM_GETSEL, byref(pos_start), byref(pos_end))
+		return pos_start.value, pos_end.value
+
+	def GetRect(self):
+		rect = RECT()
+		self.SendMessage(EM_GETRECT, 0, byref(rect))
+		return rect
+
+	def SetSel(self, pos_start, pos_end):
+		self.SendMessage(EM_SETSEL, pos_start, pos_end)
+
+	def SetRect(self, rect):
+		self.SendMessage(EM_SETRECT, 0, addressof(rect))
+
+	def SetRectNp(self, rect):
+		'is identical to the SetRect, except that SetRectNp does not redraw the edit control window'
+		self.SendMessage(EM_SETRECTNP, 0, addressof(rect))
 
 class ListBox(Window):
 	_window_class_ = 'ListBox'
@@ -1069,7 +1571,7 @@ class TabControl(Window):
 		if self.SendMessage(TCM_GETITEM, index, addressof(item)):
 			return item
 		else:
-			raise "error"
+			raise 'error'
 		
 	def AdjustRect(self, fLarger, rect):
 		lprect = byref(rect)
@@ -1143,8 +1645,79 @@ class ListView(Window):
 		Window.__init__(self, *args, **kwargs)
 		self.SetExtendedListViewStyle(self._listview_style_ex_, self._listview_style_ex_)
 
-	def InsertColumn(self, iCol, lvcolumn):
-		return self.SendMessage(LVM_INSERTCOLUMN, iCol, addressof(lvcolumn))
+	#~ def __len__(self):
+		#~ return self.GetItemCount()
+
+	def GetItemState(self, i, stateMask):
+		return self.SendMessage(LVM_GETITEMSTATE, i, stateMask)
+
+	def GetItemCount(self):
+		return self.SendMessage(LVM_GETITEMCOUNT)
+
+	def GetItem(self, i):
+		item = LVITEM()
+		item.iItem = i
+		item.mask = LVIF_TEXT | LVIF_STATE
+		self.SendMessage(LVM_GETITEM, 0, addressof(item))
+		return item
+
+	def GetItemParam(self, i):
+		item = LVITEM()
+		item.iItem = i
+		item.mask = LVIF_PARAM
+		self.SendMessage(LVM_GETITEM, 0, addressof(item))
+		return item.lParam
+
+	def GetItemText(self, i = 0, iSubItem = 0, cchTextMax = 1024):
+		item = LVITEM()
+		item.iItem = i
+		item.iSubItem = iSubItem
+		item.cchTextMax = cchTextMax
+		if UNICODE:
+			item.pszText = type_unicode('\0') * cchTextMax
+		else:
+			item.pszText = type_str('\0') * cchTextMax
+		self.SendMessage(LVM_GETITEMTEXT, i, addressof(item))
+		return item.pszText
+
+	def GetTextItems(self, iSubItem = 0):
+		result = []
+		for i in range(self.GetItemCount()):
+			result.append(self.GetItemText(i, iSubItem))
+		return result
+
+	def GetHotItem(self):
+		return self.SendMessage(LVM_GETHOTITEM)
+
+	def GetSelectedCount(self):
+		return self.SendMessage(LVM_GETSELECTEDCOUNT)
+
+	def GetFocusedItem(self):
+		result = -1
+		for i in range(self.GetItemCount()):
+			if LVIS_FOCUSED == self.SendMessage(LVM_GETITEMSTATE, i, LVIS_FOCUSED):
+				result = i
+				break
+		return result
+
+	def GetSelectedFocusedItem(self):
+		result = -1
+		state_mask = LVIS_FOCUSED | LVIS_SELECTED
+		for i in range(self.GetItemCount()):
+			if state_mask == self.SendMessage(LVM_GETITEMSTATE, i, state_mask):
+				result = i
+				break
+		return result
+
+	def GetSelectedItems(self):
+		result = []
+		for i in range(self.GetItemCount()):
+			if LVIS_SELECTED == self.SendMessage(LVM_GETITEMSTATE, i, LVIS_SELECTED):
+				result.append(i)
+		return result
+
+	def GetBkColor(self):
+		return self.SendMessage(LVM_GETBKCOLOR)
 
 	def SetColumn(self, iCol, lvcolumn):
 		return self.SendMessage(LVM_SETCOLUMN, iCol, addressof(lvcolumn))
@@ -1152,16 +1725,8 @@ class ListView(Window):
 	def SetColumnWidth(self, iCol, width):
 		return self.SendMessage(LVM_SETCOLUMNWIDTH, iCol, width)
 
-	def InsertItem(self, item):
-		if item.iItem == -1:
-			item.iItem = self.GetItemCount()
-		return self.SendMessage(LVM_INSERTITEM, 0, addressof(item))
-
 	def SetItem(self, item):
 		return self.SendMessage(LVM_SETITEM, 0, addressof(item))
-
-	def DeleteAllItems(self):
-		return self.SendMessage(LVM_DELETEALLITEMS)
 
 	def SetItemState(self, i, state, stateMask):
 		item = LVITEM()
@@ -1171,27 +1736,36 @@ class ListView(Window):
 		item.stateMask = stateMask
 		return self.SendMessage(LVM_SETITEMSTATE, i, addressof(item))
 
-	def GetItemState(self, i, stateMask):
-		return self.SendMessage(LVM_GETITEMSTATE, i, stateMask)
-
-	def GetItemCount(self):
-		return self.SendMessage(LVM_GETITEMCOUNT)
-
-	def GetItemParam(self, i):
-		item = LVITEM()
-		item.iItem = i
-		item.mask = LVIF_PARAM
-		self.SendMessage(LVM_GETITEM, 0, addressof(item))
-		return item.lParam
-
 	def SetItemCount(self, cItems, dwFlags = 0):
 		self.SendMessage(LVM_SETITEMCOUNT, cItems, dwFlags)
 
-	def GetSelectedCount(self):
-		return self.SendMessage(LVM_GETSELECTEDCOUNT)
-
 	def SetExtendedListViewStyle(self, dwExMask, dwExStyle):
 		return self.SendMessage(LVM_SETEXTENDEDLISTVIEWSTYLE, dwExMask, dwExStyle)
+
+	def SetBkColor(self, color = 0x808080):#default gray : format = 0x_blue_green_red
+		return self.SendMessage(LVM_SETBKCOLOR, 0, color)
+
+	def InsertColumn(self, iCol, lvcolumn):
+		return self.SendMessage(LVM_INSERTCOLUMN, iCol, addressof(lvcolumn))
+
+	def InsertItem(self, item):
+		if item.iItem == -1:
+			item.iItem = self.GetItemCount()
+		return self.SendMessage(LVM_INSERTITEM, 0, addressof(item))
+
+	def Update(self):
+		return self.SendMessage(LVM_UPDATE)
+
+	def HitTest(self):
+		pinfo = LVHITTESTINFO()
+		result = self.SendMessage(LVM_HITTEST, 0, byref(pinfo))
+		return result, pinfo
+
+	def DeleteItem(self, i):
+		return self.SendMessage(LVM_DELETEITEM, i)
+
+	def DeleteAllItems(self):
+		return self.SendMessage(LVM_DELETEALLITEMS)
 
 class ToolBar(Window):
 	_window_class_ = TOOLBARCLASSNAME
@@ -1221,11 +1795,56 @@ class ToolBar(Window):
 	def InsertButton(self, iButton, tbButton):
 		return self.SendMessage(TB_INSERTBUTTON, iButton, addressof(tbButton))
 
+	def insert_button(self, id_command = 0, caption = '', id_button = 0, id_image = I_IMAGENONE, fs_state = TBSTATE_ENABLED, fs_style = TBSTYLE_BUTTON):
+		button = TBBUTTON()
+		button.idCommand = id_command
+		button.iBitmap = id_image
+		button.fsState = fs_state
+		button.fsStyle = fs_style
+		button.dwData = 0
+		if caption:
+			button.iString = self.AddString(id_button, caption)
+		result = self.InsertButton(id_button, button)
+		if caption:
+			self.SetButtonCaption(id_button, caption)
+		return result
+
 	def SetImageList(self, imageList, iImage = 0):
 		return self.SendMessage(TB_SETIMAGELIST, iImage, handle(imageList))
 
+	def SetButtonInfo(self, id_button = 0, info = TBBUTTONINFO()):
+		return self.SendMessage(TB_SETBUTTONINFO, id_button, addressof(info))
+
+	def SetButtonCaption(self, id_button = 0, caption = ''):
+		info = TBBUTTONINFO()
+		info.cbSize = sizeof(TBBUTTONINFO)
+		info.dwMask = TBIF_TEXT
+		info.pszText = caption
+		return self.SetButtonInfo(id_button, info)
+
 	def SetButtonSize(self, dxButton, dyButton):
 		return self.SendMessage(TB_SETBUTTONSIZE, 0, MAKELONG(dxButton, dyButton))
+
+	def SetAutoSize(self):
+		return self.SendMessage(TB_AUTOSIZE, 0, 0)
+
+	def AddString(self, uid = 0, text = ''):
+		size_buffer = len(text)
+		if UNICODE:
+			text = c_wchar_p(text)
+		else:
+			text = c_char_p(text)
+		LoadString(hInstance, uid, text, size_buffer)
+		return self.SendMessage(TB_ADDSTRING, 0, text)
+
+	def AddBitmap(self, nButtons, lptbab = TBADDBITMAP()):
+		return self.SendMessage(TB_ADDBITMAP, nButtons, addressof(lptbab))
+
+	def add_bitmap(self, id_bitmap = 0, hInst = HINST_COMMCTRL, nButtons = 0):
+		lptbab = TBADDBITMAP()
+		lptbab.hInst = hInst
+		lptbab.nID = id_bitmap
+		return self.AddBitmap(nButtons, lptbab)
 
 class Rebar(Window):
 	_window_class_ = REBARCLASSNAME
@@ -1273,9 +1892,3 @@ class ImageList(WindowsObject):
 			except:
 				break
 			i += 1
-
-def InitCommonControls(dwICC):
-	iccex = INITCOMMONCONTROLSEX()
-	iccex.dwSize = sizeof(INITCOMMONCONTROLSEX)
-	iccex.dwICC = dwICC
-	InitCommonControlsEx(iccex)

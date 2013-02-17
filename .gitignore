@@ -5,5 +5,7 @@ build/
 dist/
 __pycache__/
 MANIFEST
+.svn/
+*.bak
 
 resources_rc.py

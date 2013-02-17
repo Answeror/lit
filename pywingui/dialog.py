@@ -21,7 +21,7 @@
 
 ## Thanx to Brad Clements for this contribution!
 
-from .version_microsoft import WINVER
+from .version_microsoft import WINVER, UNICODE
 
 from types import IntType, LongType
 
@@ -67,40 +67,42 @@ DLGC_STATIC          = 0x0100      # Static item: don't include
 DLGC_BUTTON          = 0x2000      # Button item: can be checked
 
 class StringOrOrd:
-    """Pack up a string or ordinal"""
-    def __init__(self, value):
-        if value is None or value == "":
-            self.value = c_ushort(0)
-        elif type(value) in (IntType, LongType):
-            # treat as an atom
-            if not value:
-                self.value = c_ushort(0)        # 0 is not a valid atom
-            else:
-                ordinaltype = c_ushort * 2
-                ordinal = ordinaltype(0xffff, value)
-                self.value = ordinal
-        else:
-            value = str(value)
+	"""Pack up a string or ordinal"""
+	def __init__(self, value):
+		if value is None or value == "":
+			self.value = c_ushort(0)
+		elif type(value) in (IntType, LongType):
+			# treat as an atom
+			if not value:
+				self.value = c_ushort(0)        # 0 is not a valid atom
+			else:
+				ordinaltype = c_ushort * 2
+				ordinal = ordinaltype(0xffff, value)
+				self.value = ordinal
+		else:
+			if UNICODE:
+				self.value = create_unicode_buffer(value)
+			else:
+				self.value = create_unicode_buffer(value)
+			#~ value = str(value)
 
-            mbLen = MultiByteToWideChar(CP_ACP, 0, value, -1, 0, 0)
-            if mbLen < 1:
-                raise RuntimeError("Could not determine multibyte string length for %s" % \
-                                   repr(value))
+			#~ mbLen = MultiByteToWideChar(CP_ACP, 0, value, -1, 0, 0)
+			#~ if mbLen < 1:
+				#~ raise RuntimeError("Could not determine multibyte string length for %s" % repr(value))
 
-            #this does not work for me:, why needed?
-            #if (mbLen % 2):
-            #    mbLen += 1          # round up to next word in size
-                
-            stringtype = c_ushort * mbLen
-            string = stringtype()
-            result = MultiByteToWideChar(CP_ACP, 0, value, -1, addressof(string), sizeof(string))
-            if result < 1:
-                raise RuntimeError("could not convert multibyte string %s" % repr(value))
-            self.value = string
+			#~ #this does not work for me:, why needed?
+			#~ if (mbLen % 2):
+				#~ mbLen += 1          # round up to next word in size
+				
+			#~ stringtype = c_ushort * mbLen
+			#~ string = stringtype()
+			#~ result = MultiByteToWideChar(CP_ACP, 0, value, -1, addressof(string), sizeof(string))
+			#~ if result < 1:
+				#~ raise RuntimeError("could not convert multibyte string %s" % repr(value))
+			#~ self.value = string
 
-
-    def __len__(self):
-        return sizeof(self.value)
+	def __len__(self):
+		return sizeof(self.value)
 
 class DialogTemplate(WindowsObject):
     __dispose__ = GlobalFree
@@ -111,7 +113,7 @@ class DialogTemplate(WindowsObject):
     _class_font_name_ = "MS Sans Serif" 
 
     def __init__(self,
-                 wclass = None,    # the window class
+                 wclass = None, # the window class
                  title = "",
                  menu=None,
                  style = None,
@@ -145,7 +147,6 @@ class DialogTemplate(WindowsObject):
 
         if orExStyle:
             exStyle |= orExStyle
-
 
         if nandStyle:
             style &= ~nandStyle
@@ -181,9 +182,9 @@ class DialogTemplate(WindowsObject):
         if fontName or fontSize:
             byteCount += 2 + len(fontName)
 
-        d, rem = divmod(byteCount, 4)   # align on dword
+        d, rem = divmod(byteCount, 4) # align on dword
         byteCount += rem
-        itemOffset = byteCount  # remember this for later
+        itemOffset = byteCount # remember this for later
 
         for i in items:
             byteCount += len(i)
@@ -224,8 +225,6 @@ class DialogTemplate(WindowsObject):
             memcpy(addressof(value)+offset, addressof(fontName.value), len(fontName))
             offset += len(fontName)
 
-
-
         # and now the items
         assert offset <= itemOffset, "offset %d beyond items %d" % (offset, itemOffset)
         offset = itemOffset
@@ -241,6 +240,105 @@ class DialogTemplate(WindowsObject):
     def __len__(self):
         return sizeof(self.value)
 
+class DialogTemplateEx(WindowsObject):
+    __dispose__ = GlobalFree
+    _window_class_ = None
+    _window_style_ = WS_CHILD
+    _window_style_ex_ = 0
+    _class_font_size_ = 8
+    _class_font_name_ = "MS Sans Serif" 
+
+    def __init__(self, wclass = None, title = '', menu=None, style = None, exStyle = None, fontSize=None, fontName=None, rcPos = RCDEFAULT, orStyle = None, orExStyle = None, nandStyle = None, nandExStyle = None, items=[]):
+        if wclass is not None:
+            wclass = StringOrOrd(wclass)
+        else:
+            wclass = StringOrOrd(self._window_class_)
+        title = StringOrOrd(title)
+        menu = StringOrOrd(menu)
+        if style is None:
+            style = self._window_style_
+        if exStyle is None:
+            exStyle = self._window_style_ex_
+        if orStyle:
+            style |= orStyle
+        if orExStyle:
+            exStyle |= orExStyle
+        if nandStyle:
+            style &= ~nandStyle
+        if rcPos.left == CW_USEDEFAULT:
+            cx = 50
+            x = 0
+        else:
+            cx = rcPos.right
+            x = rcPos.left
+        if rcPos.top == CW_USEDEFAULT:
+            cy = 50
+            y = 0
+        else:
+            cy = rcPos.bottom
+            y = rcPos.top
+        if style & DS_SETFONT:
+            if fontSize is None:
+                fontSize = self._class_font_size_
+            if fontName is None:
+                fontName = StringOrOrd(self._class_font_name_)
+        else:
+            fontSize = None
+            fontName = None
+        header = DLGTEMPLATEEX()
+        byteCount = sizeof(header)
+        byteCount += len(wclass) + len(title) + len(menu)
+        if fontName or fontSize:
+            byteCount += 2 + len(fontName)
+        d, rem = divmod(byteCount, 4) # align on dword
+        byteCount += rem
+        itemOffset = byteCount # remember this for later
+        for i in items:
+            byteCount += len(i)
+        valuetype = c_ubyte * byteCount
+        value = valuetype()
+        header = DLGTEMPLATEEX.from_address(addressof(value))
+        # header is overlayed on value
+        header.dlgVer = 1
+        #~ header.signature = 0xFFFF
+        header.exStyle = exStyle
+        header.style = style
+        header.cDlgItems = len(items)
+        header.x = x
+        header.y = y
+        header.cx = cx
+        header.cy = cy
+        offset = sizeof(header)
+        # now, memcpy over the menu
+        memcpy(addressof(value)+offset, addressof(menu.value), len(menu)) # len really returns sizeof menu.value
+        offset += len(menu)
+        # and the window class
+        memcpy(addressof(value)+offset, addressof(wclass.value), len(wclass)) # len really returns sizeof wclass.value
+        offset += len(wclass)
+        # now copy the title
+        memcpy(addressof(value)+offset, addressof(title.value), len(title))
+        offset += len(title)
+        if fontSize or fontName:
+            fsPtr = c_ushort.from_address(addressof(value)+offset)
+            fsPtr.value = fontSize
+            offset += 2
+            # now copy the fontname
+            memcpy(addressof(value)+offset, addressof(fontName.value), len(fontName))
+            offset += len(fontName)
+        # and now the items
+        assert offset <= itemOffset, "offset %d beyond items %d" % (offset, itemOffset)
+        offset = itemOffset
+        for item in items:
+            memcpy(addressof(value)+offset, addressof(item.value), len(item))
+            offset += len(item)
+            assert (offset % 4) == 0, "Offset not dword aligned for item"
+        self.m_handle = GlobalAlloc(0, sizeof(value))
+        memcpy(self.m_handle, addressof(value), sizeof(value))
+        self.value = value
+
+    def __len__(self):
+        return sizeof(self.value)
+
 
 class DialogItemTemplate(object):
     _window_class_ = None
@@ -249,7 +347,7 @@ class DialogItemTemplate(object):
 
     def __init__(self,
                  wclass = None,    # the window class
-                 id = 0,              # the control id
+                 id = 0,           # the control id
                  title = "",
                  style = None,
                  exStyle = None,
@@ -258,7 +356,6 @@ class DialogItemTemplate(object):
                  orExStyle = None,
                  nandStyle = None,
                  nandExStyle = None):
-
 
         if not self._window_class_ and not wclass:
             raise ValueError("A window class must be specified")
@@ -282,7 +379,6 @@ class DialogItemTemplate(object):
         if orExStyle:
             exStyle |= orExStyle
 
-
         if nandStyle:
             style &= ~nandStyle
 
@@ -302,10 +398,10 @@ class DialogItemTemplate(object):
 
         header = DLGITEMTEMPLATE()
         byteCount = sizeof(header)
-        byteCount += 2  # two bytes for extraCount
+        byteCount += 2 # two bytes for extraCount
         byteCount += len(wclass) + len(title)
         d, rem = divmod(byteCount, 4)
-        byteCount += rem            # must be a dword multiple
+        byteCount += rem # must be a dword multiple
 
         valuetype = c_ubyte * byteCount
         value = valuetype()
@@ -335,12 +431,79 @@ class DialogItemTemplate(object):
     def __len__(self):
         return sizeof(self.value)
 
-PUSHBUTTON = 0x80
-EDITTEXT = 0x81
-LTEXT = 0x82
-LISTBOX  = 0x83
-SCROLLBAR = 0x84
-COMBOBOX = 0x85
+class DialogItemTemplateEx(object):
+    _window_class_ = None
+    _window_style_ = WS_CHILD|WS_VISIBLE
+    _window_style_ex_ = 0
+
+    def __init__(self, wclass = None, id = 0, title = '', style = None, exStyle = None, rcPos = RCDEFAULT, orStyle = None, orExStyle = None, nandStyle = None, nandExStyle = None):
+        if not self._window_class_ and not wclass:
+            raise ValueError("A window class must be specified")
+        if wclass is not None:
+            wclass = StringOrOrd(wclass)
+        else:
+            wclass = StringOrOrd(self._window_class_)
+        title = StringOrOrd(title)
+        if style is None:
+            style = self._window_style_
+        if exStyle is None:
+            exStyle = self._window_style_ex_
+        if orStyle:
+            style |= orStyle
+        if orExStyle:
+            exStyle |= orExStyle
+        if nandStyle:
+            style &= ~nandStyle
+        if rcPos.left == CW_USEDEFAULT:
+            cx = 50
+            x = 0
+        else:
+            cx = rcPos.right
+            x = rcPos.left
+        if rcPos.top == CW_USEDEFAULT:
+            cy = 50
+            y = 0
+        else:
+            cy = rcPos.bottom
+            y = rcPos.top
+        header = DLGITEMTEMPLATEEX()
+        byteCount = sizeof(header)
+        byteCount += 2 # two bytes for extraCount
+        byteCount += len(wclass) + len(title)
+        d, rem = divmod(byteCount, 4)
+        byteCount += rem # must be a dword multiple
+        valuetype = c_ubyte * byteCount
+        value = valuetype()
+        header = DLGITEMTEMPLATEEX.from_address(addressof(value))
+        # header is overlayed on value
+        header.exStyle = exStyle
+        header.style = style
+        header.x = x
+        header.y = y
+        header.cx = cx
+        header.cy = cy
+        header.id = id
+        # now, memcpy over the window class
+        offset = sizeof(header)
+        memcpy(addressof(value)+offset, addressof(wclass.value), len(wclass))
+        # len really returns sizeof wclass.value
+        offset += len(wclass)
+        # now copy the title
+        memcpy(addressof(value)+offset, addressof(title.value), len(title))
+        offset += len(title)
+        extraCount = c_ushort.from_address(addressof(value)+offset)
+        extraCount.value = 0
+        self.value = value
+
+    def __len__(self):
+        return sizeof(self.value)
+
+PUSHBUTTON = 0x0080
+EDITTEXT = 0x0081
+LTEXT = 0x0082
+LISTBOX  = 0x0083
+SCROLLBAR = 0x0084
+COMBOBOX = 0x0085
 
 class PushButton(DialogItemTemplate):
     _window_class_ = PUSHBUTTON
@@ -420,11 +583,11 @@ class Dialog(Window):
             return DialogBoxIndirectParam(self.module,
                                           self.template.handle,
                                           handle(parent),
-                                          DialogProc(self.DlgProc),
+                                          DLGPROC(self.DlgProc),
                                           0)
         else:
             return DialogBoxParam(self.module, self.id, handle(parent),
-                                  DialogProc(self.DlgProc), 0)
+                                  DLGPROC(self.DlgProc), 0)
 
     def DlgProc(self, hwnd, uMsg, wParam, lParam):
         handled, result = self._msg_map_.Dispatch(self, hwnd, uMsg, wParam, lParam)
@@ -456,3 +619,51 @@ class Dialog(Window):
                          CMD_ID_HANDLER(IDOK, OnOK),
                          CMD_ID_HANDLER(IDCANCEL, OnCancel)])
 
+
+class PushButtonEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_TABSTOP
+
+class DefPushButtonEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON
+
+class GroupBoxEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|BS_GROUPBOX
+
+class EditTextEx(DialogItemTemplateEx):
+    _window_class_ = EDITTEXT
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_BORDER|WS_TABSTOP
+
+class StaticTextEx(DialogItemTemplateEx):
+    _window_class_ = LTEXT
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_GROUP
+
+class ListBoxEx(DialogItemTemplateEx):
+    _window_class_ = LISTBOX
+    _window_style_ = LBS_STANDARD
+
+class ScrollBarEx(DialogItemTemplateEx):
+    _window_class_ = SCROLLBAR
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_TABSTOP|SBS_VERT|SBS_RIGHTALIGN
+
+class ComboBoxEx(DialogItemTemplateEx):
+	_window_class_ = COMBOBOX
+	_window_style_ = WS_VISIBLE|WS_CHILD|WS_OVERLAPPED|WS_VSCROLL|WS_TABSTOP|CBS_DROPDOWNLIST
+
+class RadioButtonEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_GROUP|WS_TABSTOP|BS_RADIOBUTTON
+
+class AutoRadioButtonEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_GROUP|WS_TABSTOP|BS_AUTORADIOBUTTON
+
+class CheckBoxEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_GROUP|WS_TABSTOP|BS_CHECKBOX
+
+class AutoCheckBoxEx(DialogItemTemplateEx):
+    _window_class_ = PUSHBUTTON
+    _window_style_ = WS_CHILD|WS_VISIBLE|WS_GROUP|WS_TABSTOP|BS_AUTOCHECKBOX
