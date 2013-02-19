@@ -23,7 +23,7 @@ setup(
             'packages': packages,
             'includes': includes,
             'excludes': excludes,
-            'include_files': ['style.css'] + glob.glob('ele/*')
+            'include_files': ['style.css', 'AutoItX3.dll'] + glob.glob('ele/*')
         }
     },
     executables=[

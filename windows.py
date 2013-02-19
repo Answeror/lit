@@ -166,7 +166,40 @@ def goto(hwnd):
     #shell = win32com.client.Dispatch('WScript.Shell')
     #shell.AppActivate(pid)
     #shell.SendKeys(r'(% )x')
-    _old(hwnd)
+    #_old(hwnd)
+    _goto_autoit(hwnd)
+
+
+autoit = None
+
+
+def _register_autoit():
+    import subprocess as sp
+    sp.call(['regsvr32.exe', '/s', 'AutoItX3.dll'])
+
+
+def _init_autoit():
+    global autoit
+    if not autoit:
+        make = lambda: win32com.client.Dispatch('AutoItX3.Control')
+        try:
+            autoit = make()
+        except:
+            try:
+                _register_autoit()
+                autoit = make()
+            except Exception as e:
+                logging.error('Autoit initialization failed.')
+                logging.exception(e)
+                return
+        logging.debug('Autoit intialized.')
+
+
+def _goto_autoit(hwnd):
+    _init_autoit()
+    # prevent ambigularity
+    # remove 0x prefix
+    autoit.WinActivate('[HANDLE:%s]' % hex(hwnd)[2:])
 
 
 def _old(hwnd):
@@ -240,16 +273,19 @@ def is_alt_tab_window(hwnd):
     if not win32gui.IsWindowVisible(hwnd) or not win32gui.IsWindow(hwnd):
         return False
 
-    hwnd_walk = win32con.NULL
-    hwnd_try = ctypes.windll.user32.GetAncestor(hwnd, win32con.GA_ROOTOWNER)
-    while hwnd_try != hwnd_walk:
-        hwnd_walk = hwnd_try
-        hwnd_try = ctypes.windll.user32.GetLastActivePopup(hwnd_walk)
-        if win32gui.IsWindowVisible(hwnd_try):
-            break
-
-    if hwnd_walk != hwnd:
+    if not window_title(hwnd):
         return False
+
+    #hwnd_walk = win32con.NULL
+    #hwnd_try = ctypes.windll.user32.GetAncestor(hwnd, win32con.GA_ROOTOWNER)
+    #while hwnd_try != hwnd_walk:
+        #hwnd_walk = hwnd_try
+        #hwnd_try = ctypes.windll.user32.GetLastActivePopup(hwnd_walk)
+        #if win32gui.IsWindowVisible(hwnd_try):
+            #break
+
+    #if hwnd_walk != hwnd:
+        #return False
 
     # the following removes some task tray programs and "Program Manager"
     # but QQ and Thunder won't show either
@@ -262,12 +298,7 @@ def is_alt_tab_window(hwnd):
     # Tool windows should not be displayed either, these do not appear in the
     # task bar.
     if win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) & win32con.WS_EX_TOOLWINDOW:
-        # for PotPlayer
-        if (
-            128 != win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) or
-            'Program Manager' == window_title(hwnd)
-        ):
-            return False
+        return False
 
     pwi = WINDOWINFO()
     windll.user32.GetWindowInfo(hwnd, byref(pwi))

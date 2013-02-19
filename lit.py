@@ -40,6 +40,7 @@ from qt.QtCore import (
 )
 from qt import QT_API, QT_API_PYQT
 
+from functools import partial
 import os
 import re
 import ctypes
@@ -241,10 +242,17 @@ class Lit(QWidget):
 
     def select(self, index):
         cmd = self.cmd
-        #text = self.completer.completionModel().data(index, Qt.DisplayRole)
         self.hide_window()
         assert self.completer.content
-        self.plugins[cmd].select(content=self.completer.content, index=index)
+        # make sure task switch after search box hide
+        QTimer.singleShot(
+            0,
+            partial(
+                self.plugins[cmd].select,
+                content=self.completer.content,
+                index=index
+            )
+        )
 
     def act(self):
         if self.cmd == 'exit':
@@ -500,7 +508,8 @@ if __name__ == '__main__':
         )
 
         lit = Lit(worker, client)
-        lit.show()
+        #lit.show()
+        QTimer.singleShot(1000, lit.show)
         #QMetaObject.invokeMethod(
             #lit,
             #'show_window',
