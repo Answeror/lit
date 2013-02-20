@@ -36,7 +36,11 @@ class PySideUiBuild:
 class PyQt4UiBuild:
     def qrc(self, qrc_file, py_file):
         import subprocess
-        rccprocess = subprocess.Popen(['pyrcc4', qrc_file, '-py3', '-o', py_file])
+        import PyQt4
+        import os
+        pyqt_path = os.path.dirname(PyQt4.__file__)
+        pyrcc4_path = os.path.join(pyqt_path, 'pyrcc4')
+        rccprocess = subprocess.Popen([pyrcc4_path, qrc_file, '-py3', '-o', py_file])
         rccprocess.wait()
 
     def uic(self, ui_file, py_file):

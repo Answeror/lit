@@ -171,7 +171,8 @@ def goto(hwnd):
 
 
 def close_window(hwnd):
-    win32gui.SendMessage(hwnd, win32con.WM_CLOSE, None, None);
+    #win32gui.SendMessage(hwnd, win32con.WM_CLOSE, None, None);
+    win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
     #win32gui.CloseWindow(hwnd)
 
 
