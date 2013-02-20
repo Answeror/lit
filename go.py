@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import windows as winutils
 from datetime import datetime
 from utils import Query
 from PyQt4.QtCore import (
@@ -13,6 +12,7 @@ from PyQt4.QtCore import (
 import itertools
 import logging
 from lcs import lcs
+import windows
 
 
 NAME_LIMIT = 42
@@ -53,17 +53,17 @@ class Task(object):
     @property
     def filename(self):
         if not hasattr(self, '_filename'):
-            self._filename = winutils.get_app_name(self.hwnd)
+            self._filename = windows.get_app_name(self.hwnd)
         return self._filename
 
     @property
     def name(self):
-        return winutils.window_title(self.hwnd)
+        return windows.window_title(self.hwnd)
 
     @property
     def icon(self):
         if not hasattr(self, '_icon'):
-            self._icon = winutils.get_window_icon(self.hwnd)
+            self._icon = windows.get_window_icon(self.hwnd)
         return self._icon
 
 
@@ -72,13 +72,10 @@ class WindowModel(QAbstractListModel):
     NAME_ROLE = Qt.DisplayRole
     HWND_ROLE = Qt.UserRole
 
-    def __init__(self, items):
-        self.super.__init__()
+    def __init__(self, client, items):
+        super(WindowModel, self).__init__()
+        self.client = client
         self.items = items
-
-    @property
-    def super(self):
-        return super(WindowModel, self)
 
     def rowCount(self, parent):
         return len(self.items)
@@ -100,6 +97,19 @@ class WindowModel(QAbstractListModel):
         else:
             return None
 
+    def removeRows(self, row, count, parent):
+        try:
+            self.beginRemoveRows(parent, row, row + count - 1)
+            for i in range(row, row + count):
+                self.client.close_window(self.items[i].hwnd)
+            self.items = self.items[:row] + self.items[row + count:]
+            self.endRemoveRows()
+        except Exception as e:
+            logging.exception(e)
+            return False
+        else:
+            return True
+
 
 class Go(object):
 
@@ -116,9 +126,10 @@ class Go(object):
     def lit(self, query, upper_bound, finished, *args, **kargs):
         self.worker.do(
             make=lambda: WindowModel(
+                self.client,
                 self.sorted_active_runnable(
                     query,
-                    winutils.top_level_windows()
+                    windows.top_level_windows()
                 )[:upper_bound]
             ),
             catch=finished,
@@ -181,7 +192,7 @@ class Go(object):
             logging.info('wrong content type {}'.format(type(content)))
             return
 
-        for hwnd in winutils.top_level_windows():
+        for hwnd in windows.top_level_windows():
             if content.data(index, WindowModel.HWND_ROLE) == hwnd:
                 self._refresh_tasks([hwnd])
                 self.client.goto(hwnd=hwnd)

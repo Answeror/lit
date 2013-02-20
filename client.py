@@ -51,4 +51,7 @@ class Client(QObject):
         write(self.con, callback)
 
     def goto(self, hwnd):
-        self._write(lambda out: out.writeString(str(int(hwnd)).encode('ascii')))
+        self._write(lambda out: out.writeString(('goto %d' % int(hwnd)).encode('ascii')))
+
+    def close_window(self, hwnd):
+        self._write(lambda out: out.writeString(('close %d' % int(hwnd)).encode('ascii')))

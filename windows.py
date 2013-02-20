@@ -170,6 +170,11 @@ def goto(hwnd):
     _goto_autoit(hwnd)
 
 
+def close_window(hwnd):
+    win32gui.SendMessage(hwnd, win32con.WM_CLOSE, None, None);
+    #win32gui.CloseWindow(hwnd)
+
+
 autoit = None
 
 

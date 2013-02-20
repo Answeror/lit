@@ -17,11 +17,12 @@ from qt.QtCore import (
     QTimer,
     QPoint,
     QObject,
-    pyqtSignal,
+    Signal,
     QEvent,
     QModelIndex,
     QAbstractItemModel
 )
+import logging
 
 
 MAX_ITEM = 7
@@ -48,6 +49,14 @@ class CenterListView(QListView):
     def scrollTo(self, index, _):
         """Always scroll to center."""
         super(CenterListView, self).scrollTo(index, QAbstractItemView.PositionAtCenter)
+
+    def rowsAboutToBeRemoved(self, parent, first, last):
+        count = last - first + 1
+        self.resize(
+            self.size().width(),
+            self.size().height() - count * self.sizeHintForRow(0)
+        )
+        super(CenterListView, self).rowsAboutToBeRemoved(parent, first, last)
 
     #def resizeEvent(self, e):
         #QTimer.singleShot(0, self._adjust_popup_height)
@@ -79,7 +88,7 @@ class CenterListView(QListView):
 
 class Suggest(QWidget):
 
-    activated = pyqtSignal(QModelIndex)
+    activated = Signal(QModelIndex)
 
     def __init__(self, parent):
         QObject.__init__(self, parent)
@@ -137,6 +146,9 @@ class Suggest(QWidget):
                         ''
                     )
                     QApplication.sendEvent(o, ne)
+                    return True
+                elif e.key() == Qt.Key_D and e.modifiers() & Qt.ControlModifier:
+                    self.model.removeRow(self.popup.currentIndex().row())
                     return True
                 elif e.key() == Qt.Key_Tab or e.key() == Qt.Key_K and e.modifiers() & Qt.ControlModifier:
                     ne = QKeyEvent(

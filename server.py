@@ -61,11 +61,20 @@ class Server(QObject):
         self._write(lambda out: out.writeString(b'toggle'))
 
     def _handle_read(self):
-        ins = QDataStream(self.con)
-        set_version(ins)
-        line = str(ins.readString(), encoding='ascii')
-        logging.info(line)
-        windows.goto(int(line))
+        try:
+            ins = QDataStream(self.con)
+            set_version(ins)
+            line = str(ins.readString(), encoding='ascii')
+            logging.info(line)
+            cmd, arg = line.split()
+            if cmd == 'goto':
+                windows.goto(int(arg))
+            elif cmd == 'close':
+                windows.close_window(int(arg))
+            else:
+                logging.error('Unknown command %s with argument %s.' % (cmd, arg))
+        except Exception as e:
+            logging.exception(e)
 
     @Slot()
     def start(self):
