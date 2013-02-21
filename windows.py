@@ -55,17 +55,23 @@ PTITLEBARINFO = POINTER(tagTITLEBARINFO)
 LPTITLEBARINFO = POINTER(tagTITLEBARINFO)
 TITLEBARINFO = tagTITLEBARINFO
 
-ASFW_ANY = -1
 
+try:
+    ASFW_ANY = -1
 
-GetWindowThreadProcessId = windll.user32.GetWindowThreadProcessId
-AllowSetForegroundWindow = windll.user32.AllowSetForegroundWindow
+    GetWindowThreadProcessId = windll.user32.GetWindowThreadProcessId
+    AllowSetForegroundWindow = windll.user32.AllowSetForegroundWindow
 
-#win32gui.SystemParametersInfo(
-    #win32con.SPI_SETFOREGROUNDLOCKTIMEOUT,
-    #0,
-    #win32con.SPIF_SENDWININICHANGE | win32con.SPIF_UPDATEINIFILE
-#)
+    #win32gui.SystemParametersInfo(
+        #win32con.SPI_SETFOREGROUNDLOCKTIMEOUT,
+        #0,
+        #win32con.SPIF_SENDWININICHANGE | win32con.SPIF_UPDATEINIFILE
+    #)
+
+    #AllowSetForegroundWindow(ASFW_ANY)
+except Exception as e:
+    logging.exception(e)
+
 
 def SetForegroundWindowInternal(hWnd):
     if not IsWindow(hWnd):
@@ -166,8 +172,8 @@ def goto(hwnd):
     #shell = win32com.client.Dispatch('WScript.Shell')
     #shell.AppActivate(pid)
     #shell.SendKeys(r'(% )x')
-    #_old(hwnd)
-    _goto_autoit(hwnd)
+    _old(hwnd)
+    #_goto_autoit(hwnd)
 
 
 def close_window(hwnd):
@@ -205,7 +211,10 @@ def _goto_autoit(hwnd):
     _init_autoit()
     # prevent ambigularity
     # remove 0x prefix
-    autoit.WinActivate('[HANDLE:%s]' % hex(hwnd)[2:])
+    arg = '[HANDLE:%s]' % hex(hwnd)[2:]
+    autoit.WinActivate(arg)
+    if not autoit.WinActive(arg):
+        logging.error('%d does not activated.' % hwnd)
 
 
 def _old(hwnd):
@@ -213,6 +222,7 @@ def _old(hwnd):
     if not win32gui.IsWindow(hwnd):
         return
 
+    elevate()
 
     fgwin = win32gui.GetForegroundWindow()
     fg, fp = win32process.GetWindowThreadProcessId(fgwin)
@@ -223,9 +233,9 @@ def _old(hwnd):
         if current != fg and fg:
             try:
                 attached = win32process.AttachThreadInput(fg, current, True)
+                AllowSetForegroundWindow(ASFW_ANY)
             except:
                 pass
-            #AllowSetForegroundWindow(ASFW_ANY)
         _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
         # to show window owned by admin process when running in user process
         # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
@@ -238,7 +248,8 @@ def _old(hwnd):
             #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
 
         for fn in [
-            win32gui.BringWindowToTop,
+            #win32gui.BringWindowToTop,
+            #lambda hwnd: win32gui.ShowWindow(hwnd, win32con.SW_SHOW),
             win32gui.SetForegroundWindow,
             win32gui.SetActiveWindow,
             win32gui.SetFocus
@@ -246,9 +257,9 @@ def _old(hwnd):
             try:
                 fn(hwnd)
             except Exception as e:
-                logging.error(str(e))
+                logging.exception(e)
     except Exception as e:
-        logging.error(str(e))
+        logging.exception(e)
     finally:
         if attached:
             win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
