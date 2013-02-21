@@ -172,8 +172,8 @@ def goto(hwnd):
     #shell = win32com.client.Dispatch('WScript.Shell')
     #shell.AppActivate(pid)
     #shell.SendKeys(r'(% )x')
+    _goto_autoit(hwnd)
     _old(hwnd)
-    #_goto_autoit(hwnd)
 
 
 def close_window(hwnd):
@@ -222,8 +222,6 @@ def _old(hwnd):
     if not win32gui.IsWindow(hwnd):
         return
 
-    elevate()
-
     fgwin = win32gui.GetForegroundWindow()
     fg, fp = win32process.GetWindowThreadProcessId(fgwin)
     current = win32api.GetCurrentThreadId()
@@ -233,7 +231,7 @@ def _old(hwnd):
         if current != fg and fg:
             try:
                 attached = win32process.AttachThreadInput(fg, current, True)
-                AllowSetForegroundWindow(ASFW_ANY)
+                #AllowSetForegroundWindow(ASFW_ANY)
             except:
                 pass
         _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
@@ -248,11 +246,11 @@ def _old(hwnd):
             #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
 
         for fn in [
-            #win32gui.BringWindowToTop,
-            #lambda hwnd: win32gui.ShowWindow(hwnd, win32con.SW_SHOW),
-            win32gui.SetForegroundWindow,
-            win32gui.SetActiveWindow,
-            win32gui.SetFocus
+            win32gui.BringWindowToTop,
+            lambda hwnd: win32gui.ShowWindow(hwnd, win32con.SW_SHOW),
+            #win32gui.SetForegroundWindow,
+            win32gui.SetActiveWindow
+            #win32gui.SetFocus
         ]:
             try:
                 fn(hwnd)
