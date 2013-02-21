@@ -62,13 +62,13 @@ try:
     GetWindowThreadProcessId = windll.user32.GetWindowThreadProcessId
     AllowSetForegroundWindow = windll.user32.AllowSetForegroundWindow
 
-    #win32gui.SystemParametersInfo(
-        #win32con.SPI_SETFOREGROUNDLOCKTIMEOUT,
-        #0,
-        #win32con.SPIF_SENDWININICHANGE | win32con.SPIF_UPDATEINIFILE
-    #)
+    win32gui.SystemParametersInfo(
+        win32con.SPI_SETFOREGROUNDLOCKTIMEOUT,
+        0,
+        win32con.SPIF_SENDWININICHANGE | win32con.SPIF_UPDATEINIFILE
+    )
 
-    #AllowSetForegroundWindow(ASFW_ANY)
+    AllowSetForegroundWindow(ASFW_ANY)
 except Exception as e:
     logging.exception(e)
 
@@ -172,7 +172,7 @@ def goto(hwnd):
     #shell = win32com.client.Dispatch('WScript.Shell')
     #shell.AppActivate(pid)
     #shell.SendKeys(r'(% )x')
-    _goto_autoit(hwnd)
+    #_goto_autoit(hwnd)
     _old(hwnd)
 
 
@@ -231,7 +231,6 @@ def _old(hwnd):
         if current != fg and fg:
             try:
                 attached = win32process.AttachThreadInput(fg, current, True)
-                #AllowSetForegroundWindow(ASFW_ANY)
             except:
                 pass
         _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
@@ -248,7 +247,7 @@ def _old(hwnd):
         for fn in [
             win32gui.BringWindowToTop,
             lambda hwnd: win32gui.ShowWindow(hwnd, win32con.SW_SHOW),
-            #win32gui.SetForegroundWindow,
+            win32gui.SetForegroundWindow,
             win32gui.SetActiveWindow
             #win32gui.SetFocus
         ]:
