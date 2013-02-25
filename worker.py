@@ -10,10 +10,12 @@ from qt.QtCore import (
     Slot,
     Q_ARG,
     QMutex,
-    QMutexLocker
+    QMutexLocker,
+    QTimer
 )
 import heapq
 import itertools
+import logging
 
 
 class Action(QObject):
@@ -130,8 +132,17 @@ class Pool(object):
         self.remote = QObject()
         self.remote.moveToThread(self.thread)
 
+    def start_in_main_thread(self, job):
+        job.run()
+
     def start(self, job):
         job.setParent(self.local)
+        if _getattr(job, 'main', False):
+            self.start_in_main_thread(job)
+        else:
+            self.start_in_other_thread(job)
+
+    def start_in_other_thread(self, job):
         job = Job(job)
         job.moveToThread(self.thread)
         job.setParent(self.remote)
@@ -182,9 +193,10 @@ class Heap(object):
             raise KeyError('pop from an empty priority queue')
 
     def clear(self):
-        self.pq = []                         # list of entries arranged in a heap
-        self.entry_finder = {}               # mapping of tasks to entries
-        self.counter = itertools.count()     # unique sequence count
+        with QMutexLocker(self.mutex):
+            self.pq = []                         # list of entries arranged in a heap
+            self.entry_finder = {}               # mapping of tasks to entries
+            self.counter = itertools.count()     # unique sequence count
 
     def __bool__(self):
         return bool(self.pq)
@@ -198,18 +210,26 @@ class Worker(QObject):
         self.q = Heap()
         self.pool = Pool()
 
-    @Slot()
-    def deal(self):
+    def next_job(self):
         try:
             job = self.q.pop()
         except:
-            pass
+            return None
         else:
-            if _getattr(job, 'main', False):
-                job.run()
-            else:
+            return job
+
+    def has_pending_job(self):
+        return self.q
+
+    @Slot()
+    def deal(self):
+        job = self.next_job()
+        if job:
+            try:
                 self.pool.start(job)
-            if self.q:
+            except Exception as e:
+                logging.exception(e)
+            if self.has_pending_job():
                 self.delay_deal()
 
     def clear(self):

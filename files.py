@@ -10,6 +10,7 @@ from qt.QtGui import (
 )
 from qt.QtCore import (
     Qt,
+    QTimer,
     QMutex,
     QMutexLocker,
     QFileInfo,
@@ -177,8 +178,15 @@ class Files(object):
             except Exception as e:
                 logging.error(e)
 
+    def job(self, *args, **kargs):
+        with QMutexLocker(self.mutex):
+            if hasattr(self, 'last_job'):
+                self.last_job.cancel()
+            self.last_job = Job(*args, **kargs)
+            return self.last_job
+
     def lit(self, query, upper_bound, finished, *args, **kargs):
-        self.worker.do(job=Job(self, query, upper_bound, finished))
+        self.worker.do(job=self.job(self, query, upper_bound, finished))
 
 
 class Job(QObject):
@@ -204,9 +212,14 @@ class Job(QObject):
         self.canceled = True
 
     def run(self):
+        QTimer.singleShot(200, self.run_later)
+
+    def run_later(self):
         """Use mutex to protect self.d."""
         with QMutexLocker(self.p.mutex):
             for runnable in self.p.d.values():
+                if self.canceled:
+                    break
                 runnable.query.update(self.query.lower())
 
             def f(runnable):
@@ -218,9 +231,13 @@ class Job(QObject):
                 else:
                     return runnable.query.distance_to(runnable.name.lower())
 
+            tasks = []
+            if not self.canceled:
+                tasks = sorted(self.p.d.values(), key=f)[:self.upper_bound]
+
             QMetaObject.invokeMethod(
                 self,
                 '_make_model',
                 Qt.QueuedConnection,
-                Q_ARG(object, sorted(self.p.d.values(), key=f)[:self.upper_bound])
+                Q_ARG(object, tasks)
             )

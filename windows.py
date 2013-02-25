@@ -237,19 +237,24 @@ def _old(hwnd):
         # to show window owned by admin process when running in user process
         # see http://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
         # for details
+        #logging.debug('show command: {}'.format(showCmd))
         if showCmd == win32con.SW_SHOWMINIMIZED:
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-            #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SC_RESTORE, 0)
+
+        _, showCmd, _, _, _ = win32gui.GetWindowPlacement(hwnd)
+        assert showCmd != win32con.SW_SHOWMINIMIZED
+
+        from functools import partial
+
+        if showCmd == win32con.SW_SHOWMINIMIZED:
+            show = partial(win32gui.ShowWindow, hwnd, win32con.SW_SHOWMINIMIZED)
         else:
-            win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
-            #win32api.SendMessage(hwnd, win32con.WM_SYSCOMMAND, win32con.SW_SHOW, 0)
+            show = partial(win32gui.ShowWindow, hwnd, win32con.SW_SHOW)
 
         for fn in [
+            win32gui.SetActiveWindow,
             win32gui.BringWindowToTop,
-            lambda hwnd: win32gui.ShowWindow(hwnd, win32con.SW_SHOW),
-            win32gui.SetForegroundWindow,
-            win32gui.SetActiveWindow
-            #win32gui.SetFocus
+            show
         ]:
             try:
                 fn(hwnd)

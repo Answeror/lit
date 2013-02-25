@@ -172,26 +172,20 @@ class Lit(QWidget):
         self.toggle_visibility()
 
     def toggle_visibility(self):
-        logging.info("visible: {}".format(self.window_shown()))
-        if self.window_shown():
-            self.hide_window()
+        logging.info("visible: {}".format(self.shown()))
+        if self.shown():
+            self.hide()
         else:
-            self.show_window()
+            self.show()
 
-    def window_shown(self):
+    def shown(self):
         #return self.isVisible() and not (self.windowState() & Qt.WindowMinimized)
         return self.isVisible()
 
-    def hide_window(self):
-        #self.inp.setText('')
-        #self.completer.popup().hide()
-        #self.setWindowState(self.windowState() | Qt.WindowMinimized)
-        self.hide()
-
-    @Slot()
-    def show_window(self):
-        self.show()
-        QTimer.singleShot(42, lambda: self.client.goto(hwnd(self)))
+    def showEvent(self, e):
+        # show on top
+        QTimer.singleShot(0, lambda: self.client.goto(hwnd(self)))
+        super(Lit, self).showEvent(e)
 
     def _install_plugins(self, plugins):
         self.plugins = {p.name: p for p in plugins}
@@ -242,7 +236,7 @@ class Lit(QWidget):
 
     def select(self, index):
         cmd = self.cmd
-        self.hide_window()
+        self.hide()
         assert self.completer.content
         # make sure task switch after search box hide
         QTimer.singleShot(
@@ -508,15 +502,8 @@ if __name__ == '__main__':
         )
 
         lit = Lit(worker, client)
-        #lit.show()
-        QTimer.singleShot(1000, lit.show)
-        #QMetaObject.invokeMethod(
-            #lit,
-            #'show_window',
-            #Qt.QueuedConnection
-        #)
-
         client.toggle.connect(lit.handle_hotkey)
+        client.connected.connect(lit.show)
 
         #return app.exec_()
         app.exec_()

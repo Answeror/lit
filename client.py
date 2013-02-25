@@ -22,6 +22,7 @@ from service import (
 class Client(QObject):
 
     toggle = Signal()
+    connected = Signal()
 
     def __init__(self, parent=None):
         super(Client, self).__init__(parent)
@@ -31,6 +32,7 @@ class Client(QObject):
     def _make_socket(self):
         self.con = QTcpSocket(self)
         self.con.readyRead.connect(self._handle_read)
+        self.con.connected.connect(self.connected)
 
     def _handle_read(self):
         ins = QDataStream(self.con)
@@ -41,7 +43,11 @@ class Client(QObject):
 
     @Slot()
     def start(self):
-        self.con.connectToHost(QHostAddress.LocalHost, PORT)
+        connect = lambda: self.con.connectToHost(QHostAddress.LocalHost, PORT)
+        connect()
+        while not self.con.waitForConnected(-1):
+            logging.error('connect to host error: {}'.format(self.con.error()))
+            connect()
 
     def stop(self):
         self.con.disconnectFromHost()
