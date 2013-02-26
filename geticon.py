@@ -2,6 +2,10 @@ from qt.QtGui import (
     QPixmap,
     QIcon
 )
+from qt.QtCore import (
+    QMutex,
+    QMutexLocker
+)
 
 from win32com.shell import shell, shellcon
 import win32con
@@ -41,6 +45,10 @@ def translate_path(path):
     return path
 
 
+mutex = QMutex()
+cache = {}
+
+
 def get_file_icon_by_shell(path):
     path = translate_path(path)
     flags, (hIcon, iIcon, dwAttributes, displayName, typeName) = shell.SHGetFileInfo(
@@ -50,9 +58,13 @@ def get_file_icon_by_shell(path):
     )
     if hIcon == win32con.NULL:
         return None
-    pixmap = QPixmap.fromWinHICON(hIcon)
-    win32gui.DestroyIcon(hIcon)
-    icon = QIcon(pixmap)
+    with QMutexLocker(mutex):
+        if not hIcon in cache:
+            pixmap = QPixmap.fromWinHICON(hIcon)
+            win32gui.DestroyIcon(hIcon)
+            icon = QIcon(pixmap)
+            cache[hIcon] = icon;
+        icon = cache[hIcon]
     return icon
 
 
