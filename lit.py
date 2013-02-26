@@ -76,9 +76,9 @@ def hwnd(win):
 
 
 def parse_query(text):
-    if not text.startswith('\\'):
+    if not text.startswith(';'):
         return None, text
-    m = re.search(r'\\(\S*)( (.*)){0,1}', text)
+    m = re.search(r';(\S*)( (.*)){0,1}', text)
     return m.group(1), m.group(2)[1:] if not m.group(2) is None else None
 
 
