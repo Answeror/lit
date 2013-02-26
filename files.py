@@ -150,8 +150,8 @@ class Files(object):
                             text='',
                             insertion_cost=1,
                             first_insertion_cost=50,
-                            prepend_first_insertion_cost=5,
-                            append_first_insertion_cost=10,
+                            prepend_first_insertion_cost=10,
+                            append_first_insertion_cost=5,
                             deletion_cost=100,
                             substitution_cost=100,
                             transposition_cost=10
@@ -234,6 +234,8 @@ class Job(QObject):
             tasks = []
             if not self.canceled:
                 tasks = sorted(self.p.d.values(), key=f)[:self.upper_bound]
+
+            print('%s %d %s %d' % (tasks[0].name, f(tasks[0]), tasks[1].name, f(tasks[1])))
 
             QMetaObject.invokeMethod(
                 self,

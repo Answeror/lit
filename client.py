@@ -17,6 +17,7 @@ from service import (
     write,
     PORT
 )
+import logging
 
 
 class Client(QObject):
@@ -48,6 +49,7 @@ class Client(QObject):
         while not self.con.waitForConnected(-1):
             logging.error('connect to host error: {}'.format(self.con.error()))
             connect()
+        logging.info('connected')
 
     def stop(self):
         self.con.disconnectFromHost()

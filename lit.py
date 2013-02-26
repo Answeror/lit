@@ -460,8 +460,8 @@ def start_server():
     import subprocess as sp
     import os
 
-    root = r'C:\Program Files (x86)\lit'
-    #root = ''
+    #root = r'C:\Program Files (x86)\lit'
+    root = ''
 
     sp.call([
         os.path.join(root, 'ele', 'elevate.cmd'),
